@@ -1,0 +1,17 @@
+langchain
+langchain-openai
+tiktoken
+transformers
+vllm
+huggingface_hub
+torch
+ipywidgets
+bitsandbytes
+faiss-cpu 
+chromadb 
+sentence-transformers
+pymongo
+openai
+git+https://github.com/huggingface/transformers.git
+git+https://github.com/huggingface/peft.git
+git+https://github.com/huggingface/accelerate.git
