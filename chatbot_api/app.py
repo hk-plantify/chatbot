@@ -34,9 +34,9 @@ async def ask_question(request: ChatbotComponent):
         print("Received query:", query)
 
         if any(keyword in query.lower() for keyword in ["카드", "혜택", "할인", "정보"]):
-            response = qa_chain_card({"query": query})
+            response = qa_chain_card.invoke({"query": query})
         elif any(keyword in query.lower() for keyword in ["기부", "프로젝트", "모금", "펀딩"]):
-            response = qa_chain_funding({"query": query})
+            response = qa_chain_funding.invoke({"query": query})
         else:
             raise HTTPException(status_code=400, detail="카드 또는 기부 관련 질문을 해주세요.")
 
