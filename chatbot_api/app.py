@@ -16,7 +16,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 # Pydantic 모델 정의
 class ChatbotComponent(BaseModel):
     question: str
@@ -54,4 +53,4 @@ async def ask_question(request: ChatbotComponent):
 
 # FastAPI 서버 실행
 if __name__ == "__main__":
-    uvicorn.run(app, host="172.30.81.20", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
