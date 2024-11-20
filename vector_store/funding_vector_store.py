@@ -3,10 +3,12 @@ import pandas as pd
 from dotenv import load_dotenv
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.vectorstores import Chroma
+from sentence_transformers import SentenceTransformer
 
 load_dotenv()
 openai_key = os.environ.get("OPENAI_API_KEY")
 
+# 실제 DB랑 연결
 funding_csv_file_path = ".tmp/funding_data.csv"
 funding_df = pd.read_csv(funding_csv_file_path)
 
@@ -14,6 +16,7 @@ funding_df_reduced = funding_df[['title', 'content', 'cur_amount', 'target_amoun
                                  'category', 'funding_start_date', 'funding_end_date', 'donation_start_date', 'donation_end_date']]
 
 embeddings = OpenAIEmbeddings()
+# embedding_model = SentenceTransformer('BAAI/bge-m3')
 
 def format_funding_info(row):
     funding_info = (

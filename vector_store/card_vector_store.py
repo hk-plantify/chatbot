@@ -7,7 +7,7 @@ from langchain.vectorstores import Chroma
 load_dotenv()
 openai_key = os.environ.get("OPENAI_API_KEY")
 
-# 실제 DB랑 연결되도록 바꿔야 함
+# 실제 DB랑 연결
 csv_file_path = ".tmp/preprocessed_card_data.csv"
 df = pd.read_csv(csv_file_path)
 

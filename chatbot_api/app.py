@@ -1,7 +1,7 @@
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from starlette.status import HTTP_200_OK
-from retriever import qa_chain_card, qa_chain_funding
+from retriever import qa_chain_card, qa_chain_funding, get_menu_recommendation
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -33,21 +33,16 @@ async def ask_question(request: ChatbotComponent):
         print("Received query:", query)
 
         if any(keyword in query.lower() for keyword in ["카드", "혜택", "할인", "정보"]):
-            response = qa_chain_card.invoke({"query": query})
+            response = qa_chain_card(query)
+            answer = response['result']
         elif any(keyword in query.lower() for keyword in ["기부", "프로젝트", "모금", "펀딩"]):
-            response = qa_chain_funding.invoke({"query": query})
+            response = qa_chain_funding(query)
+            answer = response['result']
         else:
-            raise HTTPException(status_code=400, detail="카드 또는 기부 관련 질문을 해주세요.")
-
-        answer = response['result']
-        return {
-            "answer": answer,
-        }
-        # return {
-        #     "question": query,
-        #     "answer": answer,
-        #     "source_documents": response['source_documents']
-        # }
+            # 메뉴 추천을 위한 자유로운 응답 생성
+            answer = get_menu_recommendation(query)
+            
+        return {"answer": answer}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
