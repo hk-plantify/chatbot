@@ -21,48 +21,58 @@ card_vector_store = Chroma(persist_directory=card_vector_db, embedding_function=
 funding_vector_store = Chroma(persist_directory=funding_vector_db, embedding_function=embeddings)
 
 system_prompt = """
-당신은 지능적인 챗봇으로, 카드 정보나 기부 프로젝트에 대한 질문이 있을 경우 검색 결과를 활용해 답변을 제공합니다.
-처음에 먼저 "안녕하세요 무엇을 도와드릴까요?"라고 물어보세요.
+당신은 카드 및 기부 프로젝트 정보를 제공하는 전문 챗봇입니다. 아래 지침에 따라 사용자의 질문에 간결하고 정확한 답변을 제공합니다.
 
-### 지시사항
-당신은 사용자로부터 검색어를 입력 받아 카드 정보 및 기부 프로젝트 정보에 대해 간단하고 명료하게 설명해주는 챗봇입니다.
-카드 정보나 기부 프로젝트는 주어진 검색 결과에 있는 정보만을 사용해서 응답하고, 간단하게 3줄 이내로 요약해서 답변하세요.
-다른 주제의 질문에는 대답하지 말고, 카드 및 기부 관련 질문에만 대답하세요. 다른 주제의 질문이 들어오면, 카드 및 기부 관련만 질문하세요. 라고 알려주세요.
-정보가 부족하면 '해당 정보는 없습니다'라고 정중하게 말하세요.
+1. **초기 인사**: 처음 대화를 시작할 때는 항상 "안녕하세요, 무엇을 도와드릴까요?"라고 물어보세요.
+2. **답변 지침**:
+   - 카드 관련 질문 → `card_vector_store`를 사용해 검색.
+   - 기부 관련 질문 → `funding_vector_store`를 사용해 검색.
+   - 검색 결과를 바탕으로, 간단하고 명확하게 요약하여 답변하세요.
+3. **응답 예시**:
+   - 질문: "현대카드 중 혜택이 가장 많은 카드는?"
+     - 답변: "현대카드 중 혜택이 가장 많은 카드는 현대카드 Z Play입니다. 현대카드 Z Play의 혜택은 총 4개입니다."
+   - 질문: "기부 프로젝트 중 가장 인기 있는 것은?"
+     - 답변: "가장 인기 있는 기부 프로젝트는 '나무 심기 캠페인'으로, 현재 500명이 참여 중입니다."
+4. **제한사항**:
+   - 카드 및 기부와 관련되지 않은 질문이 들어오면, "카드 및 기부 관련 질문만 가능합니다."라고 응답하세요.
+5. **에러 핸들링**:
+   - 검색 결과가 없을 경우: "관련된 정보를 찾을 수 없습니다. 다른 질문을 해주세요."라고 응답하세요.
+
+당신의 목표는 검색 결과를 기반으로 신뢰할 수 있는 답변을 제공하며, 질문에 적합한 정보를 빠르게 요약하는 것입니다.
 """
 prompt = ChatPromptTemplate.from_messages([
     ("system", system_prompt),
-    ("ai", "안녕하세요 무엇을 도와드릴까요?"),
-    ("human", "{query}")
+    ("human", "질문: {query}"),
+    ("assistant", "검색 결과: {context}")
 ])
 
 # LLM 설정
 llm = ChatOpenAI(
     model_name='gpt-4o-mini',
     streaming=True,
-    temperature=0.3,
+    temperature=0.2,
     callbacks=[StreamingStdOutCallbackHandler()]
 )
 
-# 벡터 리트리버 설정
 card_retriever = card_vector_store.as_retriever(search_type="mmr", search_kwargs={"k": 1})
 funding_retriever = funding_vector_store.as_retriever(search_type="mmr", search_kwargs={"k": 1})
 
-# RetrievalQA 체인 설정
+
 qa_chain_card = RetrievalQA.from_chain_type(
     llm=llm,
-    chain_type_kwargs={"prompt": prompt, "document_variable_name": "query"},
+    chain_type="stuff",
     retriever=card_retriever,
-    return_source_documents=True
+    chain_type_kwargs={"prompt": prompt, "document_variable_name": "context"},
+    return_source_documents=False
 )
 
 qa_chain_funding = RetrievalQA.from_chain_type(
     llm=llm,
-    chain_type_kwargs={"prompt": prompt, "document_variable_name": "query"},
+    chain_type="stuff",
     retriever=funding_retriever,
-    return_source_documents=True
+    chain_type_kwargs={"prompt": prompt, "document_variable_name": "context"},
+    return_source_documents=False
 )
-
 
 
 menu_prompt = """
@@ -81,6 +91,5 @@ menu_llm = ChatOpenAI(
 )
 
 def get_menu_recommendation(query: str) -> str:
-    """음식 관련 질문에 대한 메뉴 추천을 생성하는 함수"""
     response = menu_llm([HumanMessage(content=f"{menu_prompt}\n{query}")])
     return response.content

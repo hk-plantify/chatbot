@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 from dotenv import load_dotenv
-from langchain.embeddings import OpenAIEmbeddings
+from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import Chroma
 from sentence_transformers import SentenceTransformer
 
@@ -12,31 +12,47 @@ openai_key = os.environ.get("OPENAI_API_KEY")
 funding_csv_file_path = ".tmp/funding_data.csv"
 funding_df = pd.read_csv(funding_csv_file_path)
 
-funding_df_reduced = funding_df[['title', 'content', 'cur_amount', 'target_amount', 'percent', 'status',
-                                 'category', 'funding_start_date', 'funding_end_date', 'donation_start_date', 'donation_end_date']]
+# Hugging Face 임베딩 모델 로드
+def load_huggingface_embedding_model(model_name="BAAI/bge-m3"):
+    return HuggingFaceEmbeddings(model_name=model_name)
 
-embeddings = OpenAIEmbeddings()
-# embedding_model = SentenceTransformer('BAAI/bge-m3')
+embeddings = load_huggingface_embedding_model()
 
 def format_funding_info(row):
-    funding_info = (
-        f"기부 프로젝트 제목: {row['title']}\n"
-        f"프로젝트 설명: {row['content']}\n"
-        f"현재 모금액: {row['cur_amount']}원\n"
-        f"목표 모금액: {row['target_amount']}원\n"
-        f"모금 진행률: {row['percent']}%\n"
-        f"모금 상태: {row['status']}\n"
-        f"카테고리: {row['category']}\n"
-        f"모금 시작일: {row['funding_start_date']}\n"
-        f"모금 종료일: {row['funding_end_date']}\n"
-        f"기부 시작일: {row['donation_start_date']}\n"
-        f"기부 종료일: {row['donation_end_date']}\n"
-    )
-    return funding_info
+    title = f"펀딩 제목: {row['title']}"
+    content = f"펀딩 내용: {row['content']}"
+    metadata = {
+        "funding_id": row['funding_id'],
+        "cur_amount": row['cur_amount'],
+        "target_amount": row['target_amount'],
+        "percent": row['percent'],
+        "status": row['status'],
+        "category": row['category'],
+        "funding_start_date": row['funding_start_date'],
+        "funding_end_date": row['funding_end_date']
+    }
+    return title, content, metadata
 
-all_funding_chunks = funding_df_reduced.apply(format_funding_info, axis=1).tolist()
+# 텍스트와 메타데이터 분리
+titles = []
+contents = []
+metadata_list = []
 
-funding_persist_directory = "./funding_vector_db"
-funding_vector_store = Chroma.from_texts(all_funding_chunks, embeddings, persist_directory=funding_persist_directory)
-funding_vector_store.persist()
-print("벡터 스토어가 기부 데이터 기반으로 생성되어 저장되었습니다.")
+for _, row in funding_df.iterrows():
+    title, content, metadata = format_funding_info(row)
+    titles.append(title)
+    contents.append(content)
+    metadata_list.append(metadata)
+
+# 벡터 스토어 생성
+persist_directory = "./funding_vector_db"
+vector_store = Chroma.from_texts(
+    texts=titles + contents,  # 텍스트 리스트
+    embedding=embeddings,  # 올바르게 전달
+    metadatas=metadata_list * 2,  # 메타데이터 리스트
+    persist_directory=persist_directory  # 저장 경로
+)
+
+vector_store.persist()
+
+print("펀딩 벡터 DB가 생성되고 저장되었습니다.")
