@@ -13,6 +13,11 @@ chromadb
 sentence-transformers
 pymongo
 openai
+fastapi
+uvicorn
+sqlalchemy
+mysql-connector-python
+python-dotenv
 git+https://github.com/huggingface/transformers.git
 git+https://github.com/huggingface/peft.git
 git+https://github.com/huggingface/accelerate.git
