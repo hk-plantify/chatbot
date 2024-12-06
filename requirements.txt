@@ -18,6 +18,9 @@ uvicorn
 sqlalchemy
 mysql-connector-python
 python-dotenv
+grpcio
+grpcio-tools
+protobuf
 git+https://github.com/huggingface/transformers.git
 git+https://github.com/huggingface/peft.git
 git+https://github.com/huggingface/accelerate.git

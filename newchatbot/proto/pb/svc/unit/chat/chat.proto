@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package chat;
+
+option java_package = "com.plantify.pb.unit.chat";
+option java_outer_classname = "ChatProto";
+option java_multiple_files = true;
+
+import "pb/svc/unit/common/msg.proto";
+
+service ChatService {
+  rpc SendMessage (ChatRequest) returns (ChatResponse);
+}
+
+message ChatRequest {
+  string message = 1;
+  string sender = 2;
+}
+
+message ChatResponse {
+  string reply = 1;
+  common.Status status = 2;
+}

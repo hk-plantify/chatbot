@@ -14,6 +14,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-EXPOSE 8003
+EXPOSE 50052
 
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8003"]
+CMD [ "python", "grpc_server.py" ]
