@@ -82,8 +82,6 @@ def query_funding_view(user_question: str, user_id: int = None):
         result = connection.execute(text(query_sql))
         rows = result.fetchall()
         columns = result.keys()
-    if not rows:
-        return "답변할 수 없는 질문입니다."
         
     data = [dict(zip(columns, row)) for row in rows]
 

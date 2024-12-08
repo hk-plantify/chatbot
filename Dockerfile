@@ -16,4 +16,4 @@ COPY . .
 
 EXPOSE 50052
 
-CMD [ "python", "grpc_server.py" ]
+CMD [ "python", "newchatbot/grpc_server.py" ]
