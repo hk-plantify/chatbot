@@ -2,16 +2,7 @@ langchain
 langchain-openai
 langchain-community
 tiktoken
-transformers
-vllm
-huggingface_hub
-torch
 ipywidgets
-bitsandbytes
-faiss-cpu 
-chromadb 
-sentence-transformers
-pymongo
 openai
 fastapi
 uvicorn
@@ -22,6 +13,3 @@ grpcio
 grpcio-tools
 protobuf
 pymysql
-git+https://github.com/huggingface/transformers.git
-git+https://github.com/huggingface/peft.git
-git+https://github.com/huggingface/accelerate.git
