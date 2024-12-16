@@ -144,4 +144,7 @@ def query_funding_view(user_question: str, user_id: int = None):
     # 생성된 응답을 메모리에 추가
     memory.chat_memory.add_ai_message(response.content)
     
-    return response.content
+    # return response.content
+    # 스트리밍으로 응답 생성
+    for chunk in summary_llm.stream(messages):
+        yield chunk  # 각 청크를 생성기로 반환
