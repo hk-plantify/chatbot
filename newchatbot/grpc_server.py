@@ -12,8 +12,10 @@ from llm_queries import summary_llm, query_funding_view
 class ChatService(chat_pb2_grpc.ChatServiceServicer):
     async def StreamMessage(self, request, context):
         try:
-            user_question = request.message
-            async for chunk in query_funding_view(user_question):
+            message = request.message
+            sender = request.sender if request.sender else "Unknown"
+            print(f"Received request: message={message}, sender={sender}")
+            async for chunk in query_funding_view(message, sender):
                 if chunk.strip():  # 빈 청크 제거
                     yield chat_pb2.ChatResponse(
                         reply=chunk,
