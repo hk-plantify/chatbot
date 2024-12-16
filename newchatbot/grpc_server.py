@@ -15,7 +15,6 @@ class ChatService(chat_pb2_grpc.ChatServiceServicer):
         try:
             # 사용자 질문 처리
             user_question = request.message
-            #user_id = request.sender if hasattr(request, "sender") else None
             
             # Stream response from `query_funding_view_stream`
             for chunk in query_funding_view(user_question):
@@ -24,6 +23,7 @@ class ChatService(chat_pb2_grpc.ChatServiceServicer):
                     status=msg_pb2.Status(code=200, message="Streaming...")
                 )
         except Exception as e:
+            # 에러 발생 시 에러 메시지 전송
             yield chat_pb2.ChatResponse(
                 reply="An error occurred while streaming the response.",
                 status=msg_pb2.Status(code=500, message=str(e))

@@ -15,7 +15,7 @@ sql_llm = ChatOpenAI(
 )
 
 summary_llm = ChatOpenAI(
-    temperature=0.7,  # 좀 더 다양하고 창의적인 응답을 위해 온도를 조정
+    temperature=0.5,  # 좀 더 다양하고 창의적인 응답을 위해 온도를 조정
     openai_api_key=os.getenv("OPENAI_API_KEY"),
     model_name="gpt-4o-mini",
     streaming=True,
@@ -143,8 +143,18 @@ def query_funding_view(user_question: str, user_id: int = None):
     
     # 생성된 응답을 메모리에 추가
     memory.chat_memory.add_ai_message(response.content)
-    
+
     # return response.content
-    # 스트리밍으로 응답 생성
-    for chunk in summary_llm.stream(messages):
-        yield chunk  # 각 청크를 생성기로 반환
+    
+    try:
+        # LangChain 스트리밍 호출
+        for chunk in summary_llm.stream(messages):
+            if isinstance(chunk, str):
+                yield chunk
+            elif hasattr(chunk, 'content'):  # AIMessageChunk에서 content 속성 추출
+                yield chunk.content
+            else:
+                raise ValueError(f"Invalid chunk type: {type(chunk)}")
+    except Exception as e:
+        print(f"Error during streaming: {e}")
+        raise
