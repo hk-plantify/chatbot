@@ -87,7 +87,7 @@ def question_to_sql(user_question: str, user_id: int = None) -> str:
     
     return sql_response
 
-def query_funding_view(user_question: str, user_id: int = None):
+async def query_funding_view(user_question: str, user_id: int = None):
     """
     SQL 쿼리를 생성하고 데이터베이스를 조회한 결과를 요약합니다.
     """
@@ -146,13 +146,13 @@ def query_funding_view(user_question: str, user_id: int = None):
 
     # return response.content
     
-    try:
     # LangChain 스트리밍 호출
-        for chunk in summary_llm.stream(messages):
+    try:
+        async for chunk in summary_llm.astream(messages=messages):
             print(f"Debug chunk: {chunk}, Type: {type(chunk)}")  # 청크 디버깅
             if isinstance(chunk, str):
                 yield chunk
-            elif hasattr(chunk, 'content'):  # AIMessageChunk에서 content 추출
+            elif hasattr(chunk, 'content'):
                 yield chunk.content
             else:
                 raise ValueError(f"Invalid chunk type: {type(chunk)}")
