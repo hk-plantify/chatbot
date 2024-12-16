@@ -12,30 +12,52 @@ from llm_queries import summary_llm, query_funding_view
 class ChatService(chat_pb2_grpc.ChatServiceServicer):
     async def StreamMessage(self, request, context):
         try:
+            # 요청 메타데이터와 클라이언트 정보 기록
+            print(f"Request received from: {context.peer()}")
+            print(f"Metadata: {dict(context.invocation_metadata())}")
+
+            # 요청 데이터 출력
             print(f"Received gRPC request object: {request}")
-            message = request.message
-            sender = request.sender if request.sender else "Unknown"
-            print(f"Extracted request details - message: {message}, sender: {sender}")
             
+            # 필수 필드 유효성 검사
+            if not request.message or not request.sender:
+                context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+                context.set_details("Missing required fields: 'message' or 'sender'")
+                print("Invalid request: Missing required fields.")
+                return
+
+            message = request.message
+            sender = request.sender
+            print(f"Extracted request details - message: {message}, sender: {sender}")
+
+            # 스트리밍 응답 생성
             async for chunk in query_funding_view(message, sender):
-                if chunk.strip():  # 빈 청크 제거
+                if chunk.strip():
                     yield chat_pb2.ChatResponse(
                         reply=chunk,
                         status=msg_pb2.Status(code=200, message="Chunk received")
                     )
-            # 스트리밍 완료 메시지
+
+            # 스트리밍 완료
+            print("Streaming completed successfully.")
             yield chat_pb2.ChatResponse(
                 reply="Streaming complete.",
                 status=msg_pb2.Status(code=200, message="Streaming finished")
             )
         except Exception as e:
+            # 예외 처리 및 로그 기록
             import traceback
             error_details = traceback.format_exc()
             print(f"Error in StreamMessage: {error_details}")
+
+            # gRPC 오류 설정
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details("Internal server error during streaming")
             yield chat_pb2.ChatResponse(
-                reply="An error occurred during streaming.",
-                status=msg_pb2.Status(code=500, message=str(e))
+                reply="An internal server error occurred.",
+                status=msg_pb2.Status(code=500, message="Internal server error")
             )
+
 
 async def serve():
     # 비동기 gRPC 서버 생성
