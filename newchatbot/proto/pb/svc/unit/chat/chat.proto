@@ -9,7 +9,7 @@ option java_multiple_files = true;
 import "pb/svc/unit/common/msg.proto";
 
 service ChatService {
-  rpc SendMessage (ChatRequest) returns (ChatResponse);
+  rpc StreamMessage (ChatRequest) returns (stream ChatResponse);
 }
 
 message ChatRequest {

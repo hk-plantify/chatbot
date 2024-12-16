@@ -4,20 +4,35 @@ from langchain.chat_models import ChatOpenAI
 from langchain.schema import HumanMessage, SystemMessage
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from sqlalchemy import text
+from langchain.memory import ConversationBufferWindowMemory
 
-llm = ChatOpenAI(
+# Text-to-SQL LLM 초기화
+sql_llm = ChatOpenAI(
     temperature=0,
+    openai_api_key=os.getenv("OPENAI_API_KEY"),
+    model_name="gpt-4o-mini",
+    streaming=False
+)
+
+summary_llm = ChatOpenAI(
+    temperature=0.7,  # 좀 더 다양하고 창의적인 응답을 위해 온도를 조정
     openai_api_key=os.getenv("OPENAI_API_KEY"),
     model_name="gpt-4o-mini",
     streaming=True,
     callbacks=[StreamingStdOutCallbackHandler()]
 )
 
+# 대화 버퍼 윈도우 메모리 초기화
+memory = ConversationBufferWindowMemory(k=3, return_messages=True)
+
 def extract_sql_from_response(response: str) -> str:
     response = response.replace("```sql", "").replace("```", "")
     return response.strip()
 
 def question_to_sql(user_question: str, user_id: int = None) -> str:
+    """
+    SQL 쿼리를 생성하는 단계에서는 대화 기록을 사용하지 않습니다.
+    """
     user_id_condition = f"user_id = {user_id}" if user_id else "전체 데이터를 대상으로"
     messages = [
         SystemMessage(content="당신은 데이터베이스 전문가이며 MySQL 쿼리 생성기로 동작합니다. \
@@ -57,20 +72,25 @@ def question_to_sql(user_question: str, user_id: int = None) -> str:
         LIMIT n;
 
         작업 요구 사항:
-        1. 질문이 개인화된 경우, 적절한 조건(`user_id = {user_id}`)을 포함하세요.
-        2. 질문이 개인화되지 않은 경우, user_id 조건을 제외하고 일반적인 조건으로 쿼리를 작성하세요.
-        3. 개인화 여부를 판단하여 질문에 가장 적합한 SQL 쿼리를 생성하세요.
+        1. 대화 기록에서 중요한 컨텍스트를 활용하여 사용자 요청에 맞는 SQL 쿼리를 생성하세요.
+        2. 만약 현재 질문이 이전 질문을 반복하는 경우, 이전 질문에 대한 답변을 다시 제공하세요.
+        3. 질문이 개인화된 경우, 적절한 조건(`user_id = {user_id}`)을 포함하세요.
+        4. 질문이 개인화되지 않은 경우, user_id 조건을 제외하고 일반적인 조건으로 쿼리를 작성하세요.
         """)
     ]
 
-    response = llm(messages)
+    response = sql_llm(messages)
     sql_response = extract_sql_from_response(response.content)
 
     if not sql_response.lower().startswith("select"):
         raise ValueError("유효한 SELECT SQL 쿼리가 반환되지 않았습니다.")
+    
     return sql_response
 
 def query_funding_view(user_question: str, user_id: int = None):
+    """
+    SQL 쿼리를 생성하고 데이터베이스를 조회한 결과를 요약합니다.
+    """
     query_sql = question_to_sql(user_question, user_id)
     with engine.connect() as connection:
         result = connection.execute(text(query_sql))
@@ -79,34 +99,20 @@ def query_funding_view(user_question: str, user_id: int = None):
         
     data = [dict(zip(columns, row)) for row in rows]
 
+    # Few-shot 예제: 유지
     examples = [
     {
         "user_question": "가장 인기 있는 펀딩은 무엇인가요?",
-        "data": [
-            {"title": "Save the Forest", "cur_amount": 50000, "target_amount": 100000},
-            {"title": "Help the Kids", "cur_amount": 30000, "target_amount": 50000}
-        ],
-        "response": "가장 인기 있는 펀딩은 'Save the Forest'입니다. 현재 50,000원이 모금되었으며 목표 금액은 100,000원입니다."
+        "data": [{"title": "Save the Forest", "cur_amount": 50000, "target_amount": 100000}],
+        "response": "가장 인기 있는 펀딩은 'Save the Forest'입니다."
     },
     {
         "user_question": "펀딩 상태별로 요약해주세요.",
-        "data": [
-            {"funding_status": "INPROGRESS"},
-            {"funding_status": "COMPLETED"},
-            {"funding_status": "INPROGRESS"}
-        ],
-        "response": "현재 펀딩 상태는 다음과 같습니다: INPROGRESS: 2개, COMPLETED: 1개."
-    },
-    {
-        "user_question": "카테고리별 펀딩 현황을 보여주세요.",
-        "data": [
-            {"category": "CHILDREN"},
-            {"category": "ANIMAL"},
-            {"category": "CHILDREN"}
-        ],
-        "response": "카테고리별 현황은 다음과 같습니다: CHILDREN: 2개, ANIMAL: 1개."
+        "data": [{"funding_status": "INPROGRESS"}, {"funding_status": "COMPLETED"}],
+        "response": "현재 펀딩 상태: INPROGRESS 1개, COMPLETED 1개."
     }
-    ]
+]
+
     example_prompts = "\n\n".join(
         f"사용자 질문: '{example['user_question']}'\n"
         f"데이터: {example['data']}\n"
@@ -115,8 +121,7 @@ def query_funding_view(user_question: str, user_id: int = None):
     )
     
     prompt = f"""
-    당신은 데이터를 요약하여 사용자 질문에 적합한 답변을 생성하는 AI 어시스턴트입니다.
-    응답은 반드시 2~3줄로 요약해서 답변하세요.
+    당신은 데이터를 간단하게 요약하여 사용자 질문에 적합한 답변을 생성하는 AI 어시스턴트입니다.
     아래는 몇 가지 예제입니다:
     
     {example_prompts}
@@ -126,10 +131,17 @@ def query_funding_view(user_question: str, user_id: int = None):
     응답:
     """
     
+    # 사용자 질문을 메모리에 추가
+    memory.chat_memory.add_user_message(user_question)
+    
+    # 응답 생성 단계에서만 메모리 활용
     messages = [
-        SystemMessage(content="당신은 데이터를 요약하여 간결하고 명확한 답변을 생성하는 AI입니다."),
+        SystemMessage(content="데이터를 요약하여 간결하고 명확한 답변을 생성하세요."),
         HumanMessage(content=prompt)
     ]
+    response = summary_llm(messages + memory.chat_memory.messages)
     
-    response = llm(messages)
+    # 생성된 응답을 메모리에 추가
+    memory.chat_memory.add_ai_message(response.content)
+    
     return response.content

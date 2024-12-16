@@ -34,8 +34,8 @@ class ChatServiceStub(object):
         Args:
             channel: A grpc.Channel.
         """
-        self.SendMessage = channel.unary_unary(
-                '/chat.ChatService/SendMessage',
+        self.StreamMessage = channel.unary_stream(
+                '/chat.ChatService/StreamMessage',
                 request_serializer=pb_dot_svc_dot_unit_dot_chat_dot_chat__pb2.ChatRequest.SerializeToString,
                 response_deserializer=pb_dot_svc_dot_unit_dot_chat_dot_chat__pb2.ChatResponse.FromString,
                 _registered_method=True)
@@ -44,7 +44,7 @@ class ChatServiceStub(object):
 class ChatServiceServicer(object):
     """Missing associated documentation comment in .proto file."""
 
-    def SendMessage(self, request, context):
+    def StreamMessage(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -53,8 +53,8 @@ class ChatServiceServicer(object):
 
 def add_ChatServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'SendMessage': grpc.unary_unary_rpc_method_handler(
-                    servicer.SendMessage,
+            'StreamMessage': grpc.unary_stream_rpc_method_handler(
+                    servicer.StreamMessage,
                     request_deserializer=pb_dot_svc_dot_unit_dot_chat_dot_chat__pb2.ChatRequest.FromString,
                     response_serializer=pb_dot_svc_dot_unit_dot_chat_dot_chat__pb2.ChatResponse.SerializeToString,
             ),
@@ -70,7 +70,7 @@ class ChatService(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
-    def SendMessage(request,
+    def StreamMessage(request,
             target,
             options=(),
             channel_credentials=None,
@@ -80,10 +80,10 @@ class ChatService(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(
+        return grpc.experimental.unary_stream(
             request,
             target,
-            '/chat.ChatService/SendMessage',
+            '/chat.ChatService/StreamMessage',
             pb_dot_svc_dot_unit_dot_chat_dot_chat__pb2.ChatRequest.SerializeToString,
             pb_dot_svc_dot_unit_dot_chat_dot_chat__pb2.ChatResponse.FromString,
             options,
