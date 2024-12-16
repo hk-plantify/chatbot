@@ -147,14 +147,15 @@ def query_funding_view(user_question: str, user_id: int = None):
     # return response.content
     
     try:
-        # LangChain 스트리밍 호출
+    # LangChain 스트리밍 호출
         for chunk in summary_llm.stream(messages):
+            print(f"Debug chunk: {chunk}, Type: {type(chunk)}")  # 청크 디버깅
             if isinstance(chunk, str):
                 yield chunk
-            elif hasattr(chunk, 'content'):  # AIMessageChunk에서 content 속성 추출
+            elif hasattr(chunk, 'content'):  # AIMessageChunk에서 content 추출
                 yield chunk.content
             else:
                 raise ValueError(f"Invalid chunk type: {type(chunk)}")
     except Exception as e:
-        print(f"Error during streaming: {e}")
+        print(f"Error during streaming in query_funding_view: {e}")
         raise

@@ -7,33 +7,33 @@ from concurrent import futures
 import grpc
 from proto.pb.svc.unit.chat import chat_pb2_grpc, chat_pb2
 from proto.pb.svc.unit.common import msg_pb2
-from llm_queries import query_funding_view
-from auth.oauth import validate_token 
+from llm_queries import summary_llm, query_funding_view
+from langchain.schema import HumanMessage, SystemMessage
 
 class ChatService(chat_pb2_grpc.ChatServiceServicer):
-    def StreamMessage(self, request, context):
+    async def StreamMessage(self, request, context):
         try:
-            # `sender`(userId 토큰) 인증
-            user_info = validate_token(request.sender)
-            user_id = user_info.userId
-            print(f"Authenticated user: {user_id}")
-
-            # 사용자 질문 처리
             user_question = request.message
-
-            # Stream response from `query_funding_view_stream`
-            for chunk in query_funding_view(user_question, user_id=user_id):  # user_id 전달
-                yield chat_pb2.ChatResponse(
-                    reply=chunk,  # 스트리밍 응답 청크
-                    status=msg_pb2.Status(code=200, message="Streaming...")
-                )
-        except Exception as e:
-            print(f"Error in StreamMessage: {e}")
+            async for chunk in query_funding_view(user_question):
+                if chunk.strip():  # 빈 청크 제거
+                    yield chat_pb2.ChatResponse(
+                        reply=chunk,
+                        status=msg_pb2.Status(code=200, message="Chunk received")
+                    )
+            # 스트리밍 완료 메시지
             yield chat_pb2.ChatResponse(
-                reply="An error occurred while streaming the response.",
+                reply="Streaming complete.",
+                status=msg_pb2.Status(code=200, message="Streaming finished")
+            )
+        except Exception as e:
+            import traceback
+            error_details = traceback.format_exc()
+            print(f"Error in StreamMessage: {error_details}")
+            yield chat_pb2.ChatResponse(
+                reply="An error occurred during streaming.",
                 status=msg_pb2.Status(code=500, message=str(e))
             )
-            
+
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     chat_pb2_grpc.add_ChatServiceServicer_to_server(ChatService(), server)
