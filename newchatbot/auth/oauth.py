@@ -1,10 +1,11 @@
+import os
 import httpx
 from fastapi import Depends
 from fastapi.security import HTTPBearer
-from config.config import AUTH_SERVICE_URL
 from auth.schemas import AuthUserResponse
 from common.exception import ApplicationException, AuthErrorCode
 
+AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL")
 oauth2_scheme = HTTPBearer()
 
 def validate_token(token: str) -> AuthUserResponse:
