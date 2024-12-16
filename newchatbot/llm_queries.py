@@ -33,7 +33,7 @@ def question_to_sql(user_question: str, user_id: int = None) -> str:
     """
     SQL 쿼리를 생성하는 단계에서는 대화 기록을 사용하지 않습니다.
     """
-    user_id_condition = f"user_id = {user_id}" if user_id else "전체 데이터를 대상으로"
+    # user_id_condition = f"user_id = {user_id}" if user_id else "전체 데이터를 대상으로"
     messages = [
         SystemMessage(content="당신은 데이터베이스 전문가이며 MySQL 쿼리 생성기로 동작합니다. \
                       아래 데이터베이스 스키마와 데이터를 참고하여 사용자 질문에 적합한 SELECT SQL 쿼리를 반환하세요. \
