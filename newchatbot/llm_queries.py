@@ -148,7 +148,7 @@ async def query_funding_view(user_question: str, user_id: int = None):
     
     # LangChain 스트리밍 호출
     try:
-        async for chunk in summary_llm.astream(messages=messages):
+        async for chunk in summary_llm.astream(input="", messages=messages):
             print(f"Debug chunk: {chunk}, Type: {type(chunk)}")  # 청크 디버깅
             if isinstance(chunk, str):
                 yield chunk

@@ -8,6 +8,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'proto')
 from proto.pb.svc.unit.chat import chat_pb2_grpc, chat_pb2
 from proto.pb.svc.unit.common import msg_pb2
 from llm_queries import summary_llm, query_funding_view
+from auth.oauth import validate_token
 
 class ChatService(chat_pb2_grpc.ChatServiceServicer):
     async def StreamMessage(self, request, context):
@@ -25,13 +26,17 @@ class ChatService(chat_pb2_grpc.ChatServiceServicer):
                 context.set_details("Missing required fields: 'message' or 'sender'")
                 print("Invalid request: Missing required fields.")
                 return
+            
+            token = request.metadata['authorization']  # gRPC 메타데이터에서 토큰 추출
+            auth_user = validate_token(token)  # validate_token 호출
+            user_id = auth_user.userId
 
-            message = request.message
             sender = request.sender
+            message = request.message
             print(f"Extracted request details - message: {message}, sender: {sender}")
 
             # 스트리밍 응답 생성
-            async for chunk in query_funding_view(message, sender):
+            async for chunk in query_funding_view(message, user_id):
                 if chunk.strip():
                     yield chat_pb2.ChatResponse(
                         reply=chunk,
