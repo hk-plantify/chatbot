@@ -44,15 +44,13 @@ def extract_sql_from_response(response: str) -> str:
     return response.strip()
 
 def question_to_sql(user_question: str, user_id: int = None) -> str:
-    """
-    SQL 쿼리를 생성하는 단계에서는 대화 기록을 사용하지 않습니다.
-    """
     # user_id_condition = f"user_id = {user_id}" if user_id else "전체 데이터를 대상으로"
     messages = memory.load_memory_variables({})['history']
     messages = messages + [
         SystemMessage(content="당신은 데이터베이스 전문가이며 MySQL 쿼리 생성기로 동작합니다. \
-                      아래 데이터베이스 스키마와 데이터를 참고하여 사용자 질문에 적합한 SELECT SQL 쿼리를 반환하세요. \
-                      반환 형식은 반드시 SELECT SQL 쿼리 형식이어야 합니다."),
+                      사용자 질문에 대한 적절한 SELECT SQL 쿼리를 반환하세요. \
+                      만약 사용자 질문이 잘못되었거나 SQL을 생성할 수 없는 경우, 다음과 같은 메시지를 반환하세요: \
+                      '요청에 맞는 SQL 쿼리를 생성할 수 없습니다. 보다 구체적으로 질문해 주세요.'"),
         HumanMessage(content=f"""
         데이터베이스 스키마:
         - funding_view(
@@ -97,14 +95,8 @@ def question_to_sql(user_question: str, user_id: int = None) -> str:
     response = sql_llm(messages)
     sql_response = extract_sql_from_response(response.content)
 
-    print(f"Generated SQL Query: {sql_response}")
-
-    if not sql_response.lower().startswith("select"):
-        raise ValueError("유효한 SELECT SQL 쿼리가 반환되지 않았습니다.")
-
-    # 메모리에 새로운 사용자 질문과 답변 저장
+    logger.debug(f"Generated SQL Query: {sql_response}")
     memory.save_context({"input": user_question}, {"output": sql_response})
-
     return sql_response
 
 async def query_funding_view(user_question: str, user_id: int = None):
