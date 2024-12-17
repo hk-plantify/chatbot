@@ -123,10 +123,22 @@ async def query_funding_view(user_question: str, user_id: int = None):
 
     # 응답 요약 처리
     prompt = f"사용자 질문: '{user_question}'\n데이터: {data}\n응답:"
+    
     try:
+        # 시작 토큰 전송
+        logger.debug("Sent <SOS> token")
+        yield {"content": "<SOS>"}
+
+        # 스트리밍 데이터 전송
         async for chunk in summary_llm.astream(input=[HumanMessage(content=prompt)]):
-            logger.debug(f"Streaming chunk: {chunk}")
-            yield chunk
+            chunk_content = chunk.content if hasattr(chunk, 'content') else str(chunk)
+            logger.debug(f"Streaming chunk: {chunk_content}")
+            yield {"content": chunk_content}
+
+        # 종료 토큰 전송
+        logger.debug("Sent <EOS> token")
+        yield {"content": "<EOS>"}
+
     except Exception as e:
         logger.error(f"Error during OpenAI streaming: {e}", exc_info=True)
         raise
