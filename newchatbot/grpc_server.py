@@ -54,11 +54,14 @@ class ChatService(chat_pb2_grpc.ChatServiceServicer):
 
             # 사용자 요청 처리
             async for chunk in query_funding_view(request.message, user_id):
-                logger.debug(f"Chunk sent: {chunk}")
+                chunk_content = chunk.content if hasattr(chunk, 'content') else str(chunk)
+
+                logger.debug(f"Chunk sent: {chunk_content}")
                 yield chat_pb2.ChatResponse(
-                    reply=chunk,
+                    reply=chunk_content,
                     status=msg_pb2.Status(code=200, message="Chunk received")
                 )
+
 
             logger.info("Streaming completed successfully.")
             yield chat_pb2.ChatResponse(
@@ -74,7 +77,6 @@ class ChatService(chat_pb2_grpc.ChatServiceServicer):
                 reply="An internal server error occurred.",
                 status=msg_pb2.Status(code=500, message="Internal server error")
             )
-
 
 async def serve():
     # 비동기 gRPC 서버 생성
