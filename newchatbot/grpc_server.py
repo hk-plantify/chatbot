@@ -27,16 +27,18 @@ class ChatService(chat_pb2_grpc.ChatServiceServicer):
                 print("Invalid request: Missing required fields.")
                 return
             
-            token = request.metadata['authorization']  # gRPC 메타데이터에서 토큰 추출
-            auth_user = validate_token(token)  # validate_token 호출
+            metadata = dict(context.invocation_metadata())
+            token = metadata.get('authorization', None)
+            auth_user = validate_token(token)
             user_id = auth_user.userId
+            print(f"user_id: ", user_id)
 
-            sender = request.sender
+            sender = user_id
             message = request.message
             print(f"Extracted request details - message: {message}, sender: {sender}")
 
             # 스트리밍 응답 생성
-            async for chunk in query_funding_view(message, user_id):
+            async for chunk in query_funding_view(message, sender):
                 if chunk.strip():
                     yield chat_pb2.ChatResponse(
                         reply=chunk,

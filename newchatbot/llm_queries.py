@@ -1,12 +1,11 @@
 import os
 from db.database import engine
-from langchain.chat_models import ChatOpenAI
+from langchain_openai import ChatOpenAI
 from langchain.schema import HumanMessage, SystemMessage
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from sqlalchemy import text
 from langchain.memory import ConversationBufferWindowMemory
 
-# Text-to-SQL LLM 초기화
 sql_llm = ChatOpenAI(
     temperature=0,
     openai_api_key=os.getenv("OPENAI_API_KEY"),
@@ -148,7 +147,7 @@ async def query_funding_view(user_question: str, user_id: int = None):
     
     # LangChain 스트리밍 호출
     try:
-        async for chunk in summary_llm.astream(input="", messages=messages):
+        async for chunk in summary_llm.astream(messages=messages):
             print(f"Debug chunk: {chunk}, Type: {type(chunk)}")  # 청크 디버깅
             if isinstance(chunk, str):
                 yield chunk
