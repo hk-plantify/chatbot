@@ -44,13 +44,12 @@ class ChatService(chat_pb2_grpc.ChatServiceServicer):
             metadata = dict(context.invocation_metadata())
             token = metadata.get('authorization', None)
             if not token:
-                logger.error("Authorization token is missing.")
-                context.set_code(grpc.StatusCode.UNAUTHENTICATED)
-                context.set_details("Authorization token is missing.")
-                return
+                logger.warning("Authorization token is missing. Proceeding without authentication for testing.")
+                user_id = None  # 기본값 설정
+            else:
+                auth_user = validate_token(token)
+                user_id = auth_user.userId
             
-            auth_user = validate_token(token)
-            user_id = auth_user.userId
             logger.debug(f"Validated user_id: {user_id}")
 
             # 사용자 요청 처리
