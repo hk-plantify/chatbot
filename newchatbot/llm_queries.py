@@ -7,7 +7,6 @@ from sqlalchemy import text
 from langchain.memory import ConversationBufferWindowMemory
 
 
-
 import logging
 
 # logging 설정
@@ -125,7 +124,7 @@ async def query_funding_view(user_question: str, user_id: int = None):
     # 응답 요약 처리
     prompt = f"사용자 질문: '{user_question}'\n데이터: {data}\n응답:"
     try:
-        async for chunk in summary_llm.astream(messages=[HumanMessage(content=prompt)]):
+        async for chunk in summary_llm.astream(input=[HumanMessage(content=prompt)]):
             logger.debug(f"Streaming chunk: {chunk}")
             yield chunk
     except Exception as e:
