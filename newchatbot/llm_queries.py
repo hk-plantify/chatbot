@@ -81,6 +81,8 @@ def question_to_sql(user_question: str, user_id: int = None) -> str:
     response = sql_llm(messages)
     sql_response = extract_sql_from_response(response.content)
 
+    print(f"Generated SQL Query: {sql_response}")
+
     if not sql_response.lower().startswith("select"):
         raise ValueError("유효한 SELECT SQL 쿼리가 반환되지 않았습니다.")
     
@@ -92,10 +94,14 @@ async def query_funding_view(user_question: str, user_id: int = None):
     """
     query_sql = question_to_sql(user_question, user_id)
     with engine.connect() as connection:
-        result = connection.execute(text(query_sql))
-        rows = result.fetchall()
-        columns = result.keys()
-        
+        try:
+            result = connection.execute(text(query_sql))
+            rows = result.fetchall()
+            columns = result.keys()
+        except Exception as e:
+            print(f"Database query error: {str(e)}")  # 오류 출력
+            raise e
+
     data = [dict(zip(columns, row)) for row in rows]
 
     # Few-shot 예제: 유지
@@ -139,6 +145,7 @@ async def query_funding_view(user_question: str, user_id: int = None):
         HumanMessage(content=prompt)
     ]
     response = summary_llm(messages + memory.chat_memory.messages)
+    print(f"Generated Summary Response: {response.content}")
     
     # 생성된 응답을 메모리에 추가
     memory.chat_memory.add_ai_message(response.content)
