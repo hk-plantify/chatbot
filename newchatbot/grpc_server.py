@@ -30,15 +30,6 @@ class ChatService(chat_pb2_grpc.ChatServiceServicer):
     async def StreamMessage(self, request, context):
         try:
             logger.info(f"Request received from: {context.peer()}")
-            logger.info(f"Metadata: {dict(context.invocation_metadata())}")
-            logger.info(f"Received gRPC request object: {request}")
-
-            # 필수 필드 검사
-            if not request.message or not request.sender:
-                context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-                context.set_details("Missing required fields: 'message' or 'sender'")
-                logger.error("Invalid request: Missing required fields.")
-                return
 
             # 인증 검사
             metadata = dict(context.invocation_metadata())
@@ -52,8 +43,7 @@ class ChatService(chat_pb2_grpc.ChatServiceServicer):
 
             logger.debug(f"Validated user_id: {user_id}")
 
-            
-            # 초기 인사 메시지 전송
+            # **초기 인사 메시지 전송 (첫 스트림 메시지)**
             welcome_message = "안녕하세요! 무엇을 도와드릴까요?"
             logger.debug("Sent welcome message")
             yield chat_pb2.ChatResponse(
@@ -62,16 +52,25 @@ class ChatService(chat_pb2_grpc.ChatServiceServicer):
             )
 
             # 사용자 요청 처리
-            async for chunk in query_funding_view(request.message, user_id):
-                chunk_content = chunk.content if hasattr(chunk, 'content') else str(chunk)
+            while True:
+                # 클라이언트 입력을 수신 (비동기 스트리밍)
+                request = await context.read()  # 새로운 요청을 읽음
 
-                logger.debug(f"Chunk sent: {chunk_content}")
-                yield chat_pb2.ChatResponse(
-                    reply=chunk_content,
-                    status=msg_pb2.Status(code=200, message="Chunk received")
-                )
-                
-            logger.info("Streaming completed successfully.")
+                if not request.message.strip():  # 빈 문자열이면 무시
+                    logger.debug("Received empty message. Ignoring input.")
+                    continue
+
+                logger.info(f"Processing message: {request.message}")
+
+                # 사용자 요청에 대한 응답 처리
+                async for chunk_content in query_funding_view(request.message, user_id):
+                    logger.debug(f"Chunk sent: {chunk_content}")
+                    yield chat_pb2.ChatResponse(
+                        reply=chunk_content,  # chunk 자체가 이미 텍스트 데이터
+                        status=msg_pb2.Status(code=200, message="Chunk received")
+                    )
+                    
+                logger.info("Streaming completed successfully.")
 
         except Exception as e:
             logger.error("Error in StreamMessage", exc_info=True)  # 예외 상세 출력
@@ -81,6 +80,7 @@ class ChatService(chat_pb2_grpc.ChatServiceServicer):
                 reply="An internal server error occurred.",
                 status=msg_pb2.Status(code=500, message="Internal server error")
             )
+
 
 async def serve():
     # 비동기 gRPC 서버 생성

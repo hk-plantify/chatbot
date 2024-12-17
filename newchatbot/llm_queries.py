@@ -133,7 +133,7 @@ async def query_funding_view(user_question: str, user_id: int = None):
         async for chunk in summary_llm.astream(input=[HumanMessage(content=prompt)]):
             chunk_content = chunk.content if hasattr(chunk, 'content') else str(chunk)
             logger.debug(f"Streaming chunk: {chunk_content}")
-            yield {"content": chunk_content}
+            yield chunk_content
 
         # 종료 토큰 전송
         logger.debug("Sent <EOS> token")
