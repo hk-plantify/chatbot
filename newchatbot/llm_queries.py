@@ -29,7 +29,7 @@ sql_llm = ChatOpenAI(
 )
 
 summary_llm = ChatOpenAI(
-    temperature=0.5,  # 좀 더 다양하고 창의적인 응답을 위해 온도를 조정
+    temperature=0.3,  # 좀 더 다양하고 창의적인 응답을 위해 온도를 조정
     openai_api_key=os.getenv("OPENAI_API_KEY"),
     model_name="gpt-4o-mini",
     streaming=True,
@@ -48,7 +48,8 @@ def question_to_sql(user_question: str, user_id: int = None) -> str:
     SQL 쿼리를 생성하는 단계에서는 대화 기록을 사용하지 않습니다.
     """
     # user_id_condition = f"user_id = {user_id}" if user_id else "전체 데이터를 대상으로"
-    messages = [
+    messages = memory.load_memory_variables({})['history']
+    messages = messages + [
         SystemMessage(content="당신은 데이터베이스 전문가이며 MySQL 쿼리 생성기로 동작합니다. \
                       아래 데이터베이스 스키마와 데이터를 참고하여 사용자 질문에 적합한 SELECT SQL 쿼리를 반환하세요. \
                       반환 형식은 반드시 SELECT SQL 쿼리 형식이어야 합니다."),
@@ -100,7 +101,10 @@ def question_to_sql(user_question: str, user_id: int = None) -> str:
 
     if not sql_response.lower().startswith("select"):
         raise ValueError("유효한 SELECT SQL 쿼리가 반환되지 않았습니다.")
-    
+
+    # 메모리에 새로운 사용자 질문과 답변 저장
+    memory.save_context({"input": user_question}, {"output": sql_response})
+
     return sql_response
 
 async def query_funding_view(user_question: str, user_id: int = None):
@@ -123,19 +127,20 @@ async def query_funding_view(user_question: str, user_id: int = None):
 
     # 응답 요약 처리
     prompt = f"사용자 질문: '{user_question}'\n데이터: {data}\n응답:"
-    
+
     try:
-        # 시작 토큰 전송
         logger.debug("Sent <SOS> token")
         yield "<SOS>"
 
-        # 스트리밍 데이터 전송
-        async for chunk in summary_llm.astream(input=[HumanMessage(content=prompt)]):
+        # 대화 메모리를 반영한 스트리밍
+        messages = memory.load_memory_variables({})['history']
+        messages.append(HumanMessage(content=prompt))
+
+        async for chunk in summary_llm.astream(input=messages):
             chunk_content = chunk.content if hasattr(chunk, 'content') else str(chunk)
             logger.debug(f"Streaming chunk: {chunk_content}")
             yield chunk_content
 
-        # 종료 토큰 전송
         logger.debug("Sent <EOS> token")
         yield "<EOS>"
 
