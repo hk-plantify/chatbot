@@ -49,8 +49,15 @@ class ChatService(chat_pb2_grpc.ChatServiceServicer):
             else:
                 auth_user = validate_token(token)
                 user_id = auth_user.userId
-            
+
             logger.debug(f"Validated user_id: {user_id}")
+
+            # 시작 토큰 전송
+            yield chat_pb2.ChatResponse(
+                reply="<SOS>",
+                status=msg_pb2.Status(code=200, message="Start of Stream")
+            )
+            logger.debug("Sent <SOS> token")
 
             # 사용자 요청 처리
             async for chunk in query_funding_view(request.message, user_id):
@@ -62,12 +69,14 @@ class ChatService(chat_pb2_grpc.ChatServiceServicer):
                     status=msg_pb2.Status(code=200, message="Chunk received")
                 )
 
+            # 종료 토큰 전송
+            yield chat_pb2.ChatResponse(
+                reply="<EOS>",
+                status=msg_pb2.Status(code=200, message="End of Stream")
+            )
+            logger.debug("Sent <EOS> token")
 
             logger.info("Streaming completed successfully.")
-            yield chat_pb2.ChatResponse(
-                reply="Streaming complete.",
-                status=msg_pb2.Status(code=200, message="Streaming finished")
-            )
 
         except Exception as e:
             logger.error("Error in StreamMessage", exc_info=True)  # 예외 상세 출력
@@ -77,7 +86,7 @@ class ChatService(chat_pb2_grpc.ChatServiceServicer):
                 reply="An internal server error occurred.",
                 status=msg_pb2.Status(code=500, message="Internal server error")
             )
-
+            
 async def serve():
     # 비동기 gRPC 서버 생성
     server = grpc.aio.server()
