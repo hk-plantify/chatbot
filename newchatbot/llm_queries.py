@@ -127,7 +127,7 @@ async def query_funding_view(user_question: str, user_id: int = None):
     try:
         # 시작 토큰 전송
         logger.debug("Sent <SOS> token")
-        yield {"content": "<SOS>"}
+        yield "<SOS>"
 
         # 스트리밍 데이터 전송
         async for chunk in summary_llm.astream(input=[HumanMessage(content=prompt)]):
@@ -137,7 +137,7 @@ async def query_funding_view(user_question: str, user_id: int = None):
 
         # 종료 토큰 전송
         logger.debug("Sent <EOS> token")
-        yield {"content": "<EOS>"}
+        yield "<EOS>"
 
     except Exception as e:
         logger.error(f"Error during OpenAI streaming: {e}", exc_info=True)
