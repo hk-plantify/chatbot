@@ -43,37 +43,29 @@ class ChatService(chat_pb2_grpc.ChatServiceServicer):
 
             logger.debug(f"Validated user_id: {user_id}")
 
-            # **초기 인사 메시지 전송**
-            welcome_message = "안녕하세요! 무엇을 도와드릴까요?"
-            logger.debug("Sent welcome message")
-            yield chat_pb2.ChatResponse(
-                reply=welcome_message,
-                status=msg_pb2.Status(code=200, message="Welcome message sent")
-            )
+            # # 사용자 요청 처리
+            # while True:
+            #     # 클라이언트 입력을 수신 (비동기 스트리밍)
+            #     request = await context.read()  # 새로운 요청을 읽음
 
-            # 사용자 요청 처리
-            while True:
-                # 클라이언트 입력을 수신 (비동기 스트리밍)
-                request = await context.read()  # 새로운 요청을 읽음
+            #     # 스트림 종료 또는 잘못된 request 처리
+            #     if request is None or not hasattr(request, "message"):
+            #         logger.info("Stream closed by client or invalid request received.")
+            #         break  # 스트림 종료
 
-                # 스트림 종료 또는 잘못된 request 처리
-                if request is None or not hasattr(request, "message"):
-                    logger.info("Stream closed by client or invalid request received.")
-                    break  # 스트림 종료
+            #     if not request.message.strip():  # 빈 문자열이면 무시
+            #         logger.debug("Received empty message. Ignoring input.")
+            #         continue
 
-                if not request.message.strip():  # 빈 문자열이면 무시
-                    logger.debug("Received empty message. Ignoring input.")
-                    continue
+            #     logger.info(f"Processing message: {request.message}")
 
-                logger.info(f"Processing message: {request.message}")
-
-                # 사용자 요청에 대한 응답 처리
-                async for chunk_content in query_funding_view(request.message, user_id):
-                    logger.debug(f"Chunk sent: {chunk_content}")
-                    yield chat_pb2.ChatResponse(
-                        reply=chunk_content,  # chunk 자체가 이미 텍스트 데이터
-                        status=msg_pb2.Status(code=200, message="Chunk received")
-                    )
+            # 사용자 요청에 대한 응답 처리
+            async for chunk_content in query_funding_view(request.message, user_id):
+                logger.debug(f"Chunk sent: {chunk_content}")
+                yield chat_pb2.ChatResponse(
+                    reply=chunk_content,  # chunk 자체가 이미 텍스트 데이터
+                    status=msg_pb2.Status(code=200, message="Chunk received")
+                )
 
             logger.info("Streaming completed successfully.")
 
