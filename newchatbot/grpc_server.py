@@ -10,54 +10,65 @@ from proto.pb.svc.unit.common import msg_pb2
 from llm_queries import summary_llm, query_funding_view
 from auth.oauth import validate_token
 
+
+import logging
+
+# logging 설정
+logging.basicConfig(
+    level=logging.DEBUG,  # DEBUG 레벨부터 로그 출력
+    format="%(asctime)s [%(levelname)s] %(filename)s: %(lineno)d - %(message)s",
+    handlers=[
+        logging.StreamHandler(),  # 콘솔에 로그 출력
+        logging.FileHandler("app_debug.log")  # 파일에 로그 저장
+    ]
+)
+
+logger = logging.getLogger(__name__)  # 로거 생성
+
+
 class ChatService(chat_pb2_grpc.ChatServiceServicer):
     async def StreamMessage(self, request, context):
         try:
-            # 요청 메타데이터와 클라이언트 정보 기록
-            print(f"Request received from: {context.peer()}")
-            print(f"Metadata: {dict(context.invocation_metadata())}")
+            logger.info(f"Request received from: {context.peer()}")
+            logger.info(f"Metadata: {dict(context.invocation_metadata())}")
+            logger.info(f"Received gRPC request object: {request}")
 
-            # 요청 데이터 출력
-            print(f"Received gRPC request object: {request}")
-            
-            # 필수 필드 유효성 검사
+            # 필수 필드 검사
             if not request.message or not request.sender:
                 context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
                 context.set_details("Missing required fields: 'message' or 'sender'")
-                print("Invalid request: Missing required fields.")
+                logger.error("Invalid request: Missing required fields.")
                 return
-            
+
+            # 인증 검사
             metadata = dict(context.invocation_metadata())
             token = metadata.get('authorization', None)
+            if not token:
+                logger.error("Authorization token is missing.")
+                context.set_code(grpc.StatusCode.UNAUTHENTICATED)
+                context.set_details("Authorization token is missing.")
+                return
+            
             auth_user = validate_token(token)
             user_id = auth_user.userId
-            print(f"user_id: ", user_id)
+            logger.debug(f"Validated user_id: {user_id}")
 
-            sender = user_id
-            message = request.message
-            print(f"Extracted request details - message: {message}, sender: {sender}")
+            # 사용자 요청 처리
+            async for chunk in query_funding_view(request.message, user_id):
+                logger.debug(f"Chunk sent: {chunk}")
+                yield chat_pb2.ChatResponse(
+                    reply=chunk,
+                    status=msg_pb2.Status(code=200, message="Chunk received")
+                )
 
-            # 스트리밍 응답 생성
-            async for chunk in query_funding_view(message, sender):
-                if chunk.strip():
-                    yield chat_pb2.ChatResponse(
-                        reply=chunk,
-                        status=msg_pb2.Status(code=200, message="Chunk received")
-                    )
-
-            # 스트리밍 완료
-            print("Streaming completed successfully.")
+            logger.info("Streaming completed successfully.")
             yield chat_pb2.ChatResponse(
                 reply="Streaming complete.",
                 status=msg_pb2.Status(code=200, message="Streaming finished")
             )
-        except Exception as e:
-            # 예외 처리 및 로그 기록
-            import traceback
-            error_details = traceback.format_exc()
-            print(f"Error in StreamMessage: {error_details}")
 
-            # gRPC 오류 설정
+        except Exception as e:
+            logger.error("Error in StreamMessage", exc_info=True)  # 예외 상세 출력
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details("Internal server error during streaming")
             yield chat_pb2.ChatResponse(
