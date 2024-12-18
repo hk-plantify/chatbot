@@ -6,6 +6,9 @@ from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from sqlalchemy import text
 from langchain.memory import ConversationBufferWindowMemory
 
+import time
+from openai import RateLimitError
+
 
 import logging
 
@@ -107,43 +110,56 @@ def question_to_sql(user_question: str, user_id: int = None) -> str:
 
     return sql_response
 
-async def query_funding_view(user_question: str, user_id: int = None):
+async def query_funding_view(user_question: str, user_id: int = None, max_retries: int = 3, retry_delay: int = 5):
     logger.info(f"Received user_question: {user_question}, user_id: {user_id}")
-    try:
-        query_sql = question_to_sql(user_question, user_id)
-        logger.debug(f"Generated SQL: {query_sql}")
+    
+    for attempt in range(max_retries):
+        try:
+            # SQL 쿼리 생성
+            query_sql = question_to_sql(user_question, user_id)
+            logger.debug(f"Generated SQL: {query_sql}")
 
-        with engine.connect() as connection:
-            result = connection.execute(text(query_sql))
-            rows = result.fetchall()
-            columns = result.keys()
-            logger.debug(f"Fetched rows: {len(rows)}")
-    except Exception as e:
-        logger.error(f"Database query error: {e}", exc_info=True)
-        raise
+            # 데이터베이스에서 쿼리 실행
+            with engine.connect() as connection:
+                result = connection.execute(text(query_sql))
+                rows = result.fetchall()
+                columns = result.keys()
+                logger.debug(f"Fetched rows: {len(rows)}")
 
-    data = [dict(zip(columns, row)) for row in rows]
-    logger.debug(f"Data to summarize: {data}")
+            # 데이터 정리
+            data = [dict(zip(columns, row)) for row in rows]
+            logger.debug(f"Data to summarize: {data}")
 
-    # 응답 요약 처리
-    prompt = f"사용자 질문: '{user_question}'\n데이터: {data}\n응답:"
+            # 응답 요약 처리
+            prompt = f"사용자 질문: '{user_question}'\n데이터: {data}\n응답:"
+            logger.debug("Sent <SOS> token")
+            yield "<SOS>"
 
-    try:
-        logger.debug("Sent <SOS> token")
-        yield "<SOS>"
+            # 대화 메모리를 반영한 스트리밍
+            messages = memory.load_memory_variables({})['history']
+            messages.append(HumanMessage(content=prompt))
 
-        # 대화 메모리를 반영한 스트리밍
-        messages = memory.load_memory_variables({})['history']
-        messages.append(HumanMessage(content=prompt))
+            async for chunk in summary_llm.astream(input=messages):
+                chunk_content = chunk.content if hasattr(chunk, 'content') else str(chunk)
+                logger.debug(f"Streaming chunk: {chunk_content}")
+                yield chunk_content
 
-        async for chunk in summary_llm.astream(input=messages):
-            chunk_content = chunk.content if hasattr(chunk, 'content') else str(chunk)
-            logger.debug(f"Streaming chunk: {chunk_content}")
-            yield chunk_content
+            logger.debug("Sent <EOS> token")
+            yield "<EOS>"
+            return  # 성공적으로 처리되면 함수 종료
 
-        logger.debug("Sent <EOS> token")
-        yield "<EOS>"
+        except RateLimitError as e:
+            # RateLimitError 처리: 재시도 또는 초기화
+            logger.warning(f"RateLimitError 발생. 재시도 {attempt + 1}/{max_retries}. 대기 {retry_delay}초.")
+            time.sleep(retry_delay)  # 재시도 전에 대기
+        except Exception as e:
+            # 기타 오류 처리
+            logger.error(f"Error during query or streaming: {e}", exc_info=True)
+            memory.clear()  # 메모리 초기화
+            logger.info("오류로 인해 대화 메모리를 초기화했습니다.")
+            raise
 
-    except Exception as e:
-        logger.error(f"Error during OpenAI streaming: {e}", exc_info=True)
-        raise
+    # 최대 재시도 후 실패 처리
+    memory.clear()
+    logger.info("재시도 실패로 인해 대화 메모리를 초기화했습니다.")
+    yield "요청이 너무 많아 처리할 수 없습니다. 대화가 초기화되었습니다. 다시 시도해주세요."
