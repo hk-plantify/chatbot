@@ -74,6 +74,7 @@ def question_to_sql(user_question: str, user_id: int = None) -> str:
             myFunding_id: BIGINT, -- 사용자 기부 ID (NULL 가능)
             user_id: BIGINT, -- 사용자 ID (NULL 가능)
             price: BIGINT, -- 사용자의 기부 금액
+            myFunding_status: ENUM('INPROGRESS', 'COMPLETED', 'DELIVERING', 'DELIVERED', NULL 가능) -- 사용자 기부 상태
         )
 
         사용자 질문: "{user_question}"
@@ -98,6 +99,7 @@ def question_to_sql(user_question: str, user_id: int = None) -> str:
 
     logger.debug(f"Generated SQL Query: {sql_response}")
     memory.save_context({"input": user_question}, {"output": sql_response})
+
     return sql_response
 
 async def query_funding_view(user_question: str, user_id: int = None):

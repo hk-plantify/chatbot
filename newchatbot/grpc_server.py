@@ -8,7 +8,6 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'proto')
 from proto.pb.svc.unit.chat import chat_pb2_grpc, chat_pb2
 from proto.pb.svc.unit.common import msg_pb2
 from llm_queries import summary_llm, query_funding_view
-#from llm_queries_function_calling import query_funding_view
 from auth.oauth import validate_token
 
 
@@ -48,7 +47,7 @@ class ChatService(chat_pb2_grpc.ChatServiceServicer):
             #     logger.info(f"Processing message: {request.message}")
 
             # 사용자 요청에 대한 응답 처리
-            async for chunk_content in query_funding_view(request.message, getattr(request, 'user_id', None)):
+            async for chunk_content in query_funding_view(request.message):
                 logger.debug(f"Chunk sent: {chunk_content}")
                 yield chat_pb2.ChatResponse(
                     reply=chunk_content,  # chunk 자체가 이미 텍스트 데이터
