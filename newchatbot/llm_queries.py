@@ -130,7 +130,8 @@ async def query_funding_view(user_question: str, user_id: int = None):
 
         # 대화 메모리를 반영한 스트리밍
         messages = memory.load_memory_variables({})['history']
-        messages.append(SystemMessage(content=system_prompt), HumanMessage(content=prompt))
+        messages.insert(0, SystemMessage(content=system_prompt))  # 시스템 메시지는 대화의 첫 번째 메시지로 추가
+        messages.append(HumanMessage(content=prompt))
 
         async for chunk in summary_llm.astream(input=messages):
             chunk_content = chunk.content if hasattr(chunk, 'content') else str(chunk)
