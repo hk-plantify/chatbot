@@ -65,8 +65,6 @@ class ChatService(chat_pb2_grpc.ChatServiceServicer):
                 status=msg_pb2.Status(code=500, message="Internal server error")
             )
 
-
-
 async def serve():
     # 비동기 gRPC 서버 생성
     server = grpc.aio.server()

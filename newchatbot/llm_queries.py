@@ -97,7 +97,12 @@ def question_to_sql(user_question: str, user_id: int = None) -> str:
     response = sql_llm(messages)
     sql_response = extract_sql_from_response(response.content)
 
-    logger.debug(f"Generated SQL Query: {sql_response}")
+    print(f"Generated SQL Query: {sql_response}")
+
+    if not sql_response.lower().startswith("select"):
+        raise ValueError("유효한 SELECT SQL 쿼리가 반환되지 않았습니다.")
+
+    # 메모리에 새로운 사용자 질문과 답변 저장
     memory.save_context({"input": user_question}, {"output": sql_response})
 
     return sql_response
@@ -120,9 +125,6 @@ async def query_funding_view(user_question: str, user_id: int = None):
     data = [dict(zip(columns, row)) for row in rows]
     logger.debug(f"Data to summarize: {data}")
 
-    # System prompt 정의
-    system_prompt = "당신은 데이터를 간결하게 요약하여 제공하는 AI입니다. 항상 간단하고 명확하게 답변하세요."
-    
     # 응답 요약 처리
     prompt = f"사용자 질문: '{user_question}'\n데이터: {data}\n응답:"
 
@@ -132,7 +134,6 @@ async def query_funding_view(user_question: str, user_id: int = None):
 
         # 대화 메모리를 반영한 스트리밍
         messages = memory.load_memory_variables({})['history']
-        messages.insert(0, SystemMessage(content=system_prompt))  # 시스템 메시지는 대화의 첫 번째 메시지로 추가
         messages.append(HumanMessage(content=prompt))
 
         async for chunk in summary_llm.astream(input=messages):
