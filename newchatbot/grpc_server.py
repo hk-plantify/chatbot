@@ -7,8 +7,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'proto')
 
 from proto.pb.svc.unit.chat import chat_pb2_grpc, chat_pb2
 from proto.pb.svc.unit.common import msg_pb2
-#from llm_queries import summary_llm, query_funding_view
-from llm_queries_function_calling import query_funding_view
+from llm_queries import summary_llm, query_funding_view
+#from llm_queries_function_calling import query_funding_view
 from auth.oauth import validate_token
 
 
