@@ -118,6 +118,9 @@ async def query_funding_view(user_question: str, user_id: int = None):
     data = [dict(zip(columns, row)) for row in rows]
     logger.debug(f"Data to summarize: {data}")
 
+    # System prompt 정의
+    system_prompt = "당신은 데이터를 간결하게 요약하여 제공하는 AI입니다. 항상 간단하고 명확하게 답변하세요."
+    
     # 응답 요약 처리
     prompt = f"사용자 질문: '{user_question}'\n데이터: {data}\n응답:"
 
@@ -127,7 +130,7 @@ async def query_funding_view(user_question: str, user_id: int = None):
 
         # 대화 메모리를 반영한 스트리밍
         messages = memory.load_memory_variables({})['history']
-        messages.append(HumanMessage(content=prompt))
+        messages.append(SystemMessage(content=system_prompt), HumanMessage(content=prompt))
 
         async for chunk in summary_llm.astream(input=messages):
             chunk_content = chunk.content if hasattr(chunk, 'content') else str(chunk)
