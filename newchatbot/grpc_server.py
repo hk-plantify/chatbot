@@ -30,19 +30,6 @@ class ChatService(chat_pb2_grpc.ChatServiceServicer):
     async def StreamMessage(self, request, context):
         try:
             logger.info(f"Request received from: {context.peer()}")
-
-            # 인증 검사
-            metadata = dict(context.invocation_metadata())
-            token = metadata.get('authorization', None)
-            if not token:
-                logger.warning("Authorization token is missing. Proceeding without authentication for testing.")
-                user_id = None  # 기본값 설정
-            else:
-                auth_user = validate_token(token)
-                user_id = auth_user.userId
-
-            logger.debug(f"Validated user_id: {user_id}")
-
             # # 사용자 요청 처리
             # while True:
             #     # 클라이언트 입력을 수신 (비동기 스트리밍)
@@ -60,7 +47,7 @@ class ChatService(chat_pb2_grpc.ChatServiceServicer):
             #     logger.info(f"Processing message: {request.message}")
 
             # 사용자 요청에 대한 응답 처리
-            async for chunk_content in query_funding_view(request.message, user_id):
+            async for chunk_content in query_funding_view(request.message, request.user_id):
                 logger.debug(f"Chunk sent: {chunk_content}")
                 yield chat_pb2.ChatResponse(
                     reply=chunk_content,  # chunk 자체가 이미 텍스트 데이터

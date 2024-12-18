@@ -13,8 +13,9 @@ service ChatService {
 }
 
 message ChatRequest {
-  string message = 1;
-  string sender = 2;
+  int32 userId = 1;
+  string message = 2;
+  string sender = 3;
 }
 
 message ChatResponse {
