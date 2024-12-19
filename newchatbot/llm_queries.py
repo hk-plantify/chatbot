@@ -50,7 +50,9 @@ def question_to_sql(user_question: str, user_id: int = None) -> str:
     # user_id_condition = f"user_id = {user_id}" if user_id else "전체 데이터를 대상으로"
     messages = memory.load_memory_variables({})['history']
     messages = messages + [
-        SystemMessage(content="당신은 MySQL 쿼리 생성기로 동작합니다. 데이터베이스 스키마와 사용자 질문을 기반으로 적절한 SELECT 쿼리를 반환하세요."),
+        SystemMessage(content="당신은 데이터베이스 전문가이며 MySQL 쿼리 생성기로 동작합니다. \
+                      아래 데이터베이스 스키마와 데이터를 참고하여 사용자 질문에 적합한 SELECT SQL 쿼리를 반환하세요. \
+                      반환 형식은 반드시 SELECT SQL 쿼리 형식이어야 합니다."),
         HumanMessage(content=f"""
         데이터베이스 스키마:
         - funding_view(
@@ -92,7 +94,7 @@ def question_to_sql(user_question: str, user_id: int = None) -> str:
         """)
     ]
 
-    response = sql_llm(messages)
+    response = sql_llm.invoke(messages)
     sql_response = extract_sql_from_response(response.content)
 
     print(f"Generated SQL Query: {sql_response}")
@@ -100,16 +102,17 @@ def question_to_sql(user_question: str, user_id: int = None) -> str:
     if not sql_response.lower().startswith("select"):
         raise ValueError("유효한 SELECT SQL 쿼리가 반환되지 않았습니다.")
 
-    # 메모리에 새로운 사용자 질문과 답변 저장
-    memory.save_context({"input": user_question}, {"output": sql_response})
-
     return sql_response
 
 async def query_funding_view(user_question: str, user_id: int = None):
     logger.info(f"Received user_question: {user_question}, user_id: {user_id}")
+    
     try:
+        # SQL 생성
         query_sql = question_to_sql(user_question, user_id)
-
+        logger.debug(f"Generated SQL Query: {query_sql}")
+        
+        # DB에서 쿼리 실행
         with engine.connect() as connection:
             result = connection.execute(text(query_sql))
             rows = result.fetchall()
@@ -118,20 +121,21 @@ async def query_funding_view(user_question: str, user_id: int = None):
         logger.error(f"Database query error: {e}", exc_info=True)
         raise
 
+    # DB 결과를 dictionary로 변환
     data = [dict(zip(columns, row)) for row in rows]
 
-    # 응답 요약 처리
+    # 데이터 요약 처리
     prompt = (
-    f"사용자 질문: '{user_question}'\n"
-    f"다음 데이터에서 핵심 정보를 요약하여 간결하게 답변을 작성하세요:\n{data}\n"
-    f"응답:"
+        f"사용자 질문: '{user_question}'\n"
+        f"다음 데이터에서 핵심 정보를 요약하여 간결하게 답변을 작성하세요:\n{data}\n"
+        f"응답:"
     )
-
+    
     try:
         logger.debug("Sent <SOS> token")
         yield "<SOS>"
 
-        # 대화 메모리를 반영한 스트리밍
+        # 요약 처리용 대화 메모리 추가
         messages = memory.load_memory_variables({})['history']
         messages.append(HumanMessage(content=prompt))
 
@@ -139,9 +143,12 @@ async def query_funding_view(user_question: str, user_id: int = None):
             chunk_content = chunk.content if hasattr(chunk, 'content') else str(chunk)
             logger.debug(f"Streaming chunk: {chunk_content}")
             yield chunk_content
-
+        
         logger.debug("Sent <EOS> token")
         yield "<EOS>"
+
+        # 질문과 요약 응답만 대화 메모리에 저장
+        memory.save_context({"input": user_question}, {"output": "응답 요약이 완료되었습니다."})
 
     except Exception as e:
         logger.error(f"Error during OpenAI streaming: {e}", exc_info=True)
