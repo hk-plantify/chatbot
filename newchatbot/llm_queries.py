@@ -131,7 +131,12 @@ async def query_funding_view(user_question: str, user_id: int = None, max_retrie
             logger.debug(f"Data to summarize: {data}")
 
             # 응답 요약 처리
-            prompt = f"사용자 질문: '{user_question}'\n데이터: {data}\n응답:"
+            prompt = (
+                f"사용자 질문: '{user_question}'\n"
+                f"데이터: {data}\n"
+                f"위 데이터를 참고하여 사용자 질문에 대한 답변을 간결하게 요약된 문장 형태로 작성하세요.\n"
+                f"응답:"
+            )
             logger.debug("Sent <SOS> token")
             yield "<SOS>"
 
