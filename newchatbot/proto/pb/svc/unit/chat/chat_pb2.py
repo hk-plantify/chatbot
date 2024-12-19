@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from pb.svc.unit.common import msg_pb2 as pb_dot_svc_dot_unit_dot_common_dot_msg__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1bpb/svc/unit/chat/chat.proto\x12\x04\x63hat\x1a\x1cpb/svc/unit/common/msg.proto\">\n\x0b\x43hatRequest\x12\x0e\n\x06userId\x18\x01 \x01(\x03\x12\x0f\n\x07message\x18\x02 \x01(\t\x12\x0e\n\x06sender\x18\x03 \x01(\t\"=\n\x0c\x43hatResponse\x12\r\n\x05reply\x18\x01 \x01(\t\x12\x1e\n\x06status\x18\x02 \x01(\x0b\x32\x0e.common.Status2G\n\x0b\x43hatService\x12\x38\n\rStreamMessage\x12\x11.chat.ChatRequest\x1a\x12.chat.ChatResponse0\x01\x42(\n\x19\x63om.plantify.pb.unit.chatB\tChatProtoP\x01\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1bpb/svc/unit/chat/chat.proto\x12\x04\x63hat\x1a\x1cpb/svc/unit/common/msg.proto\".\n\x0b\x43hatRequest\x12\x0f\n\x07message\x18\x01 \x01(\t\x12\x0e\n\x06sender\x18\x02 \x01(\t\"=\n\x0c\x43hatResponse\x12\r\n\x05reply\x18\x01 \x01(\t\x12\x1e\n\x06status\x18\x02 \x01(\x0b\x32\x0e.common.Status2G\n\x0b\x43hatService\x12\x38\n\rStreamMessage\x12\x11.chat.ChatRequest\x1a\x12.chat.ChatResponse0\x01\x42(\n\x19\x63om.plantify.pb.unit.chatB\tChatProtoP\x01\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -34,9 +34,9 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'\n\031com.plantify.pb.unit.chatB\tChatProtoP\001'
   _globals['_CHATREQUEST']._serialized_start=67
-  _globals['_CHATREQUEST']._serialized_end=129
-  _globals['_CHATRESPONSE']._serialized_start=131
-  _globals['_CHATRESPONSE']._serialized_end=192
-  _globals['_CHATSERVICE']._serialized_start=194
-  _globals['_CHATSERVICE']._serialized_end=265
+  _globals['_CHATREQUEST']._serialized_end=113
+  _globals['_CHATRESPONSE']._serialized_start=115
+  _globals['_CHATRESPONSE']._serialized_end=176
+  _globals['_CHATSERVICE']._serialized_start=178
+  _globals['_CHATSERVICE']._serialized_end=249
 # @@protoc_insertion_point(module_scope)

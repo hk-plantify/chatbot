@@ -4,21 +4,25 @@ from langchain_openai import ChatOpenAI
 from langchain.schema import HumanMessage, SystemMessage
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from sqlalchemy import text
+from langchain.memory import ConversationBufferWindowMemory
+
+
 import logging
 
 # logging 설정
-# logging.basicConfig(
-#     level=logging.DEBUG,  # DEBUG 레벨부터 로그 출력
-#     format="%(asctime)s [%(levelname)s] %(filename)s: %(lineno)d - %(message)s",
-#     handlers=[
-#         logging.StreamHandler(),  # 콘솔에 로그 출력
-#     ]
-# )
+logging.basicConfig(
+    level=logging.DEBUG,  # DEBUG 레벨부터 로그 출력
+    format="%(asctime)s [%(levelname)s] %(filename)s: %(lineno)d - %(message)s",
+    handlers=[
+        logging.StreamHandler(),  # 콘솔에 로그 출력
+        logging.FileHandler("app_debug.log")  # 파일에 로그 저장
+    ]
+)
 
-# logger = logging.getLogger(__name__)  # 로거 생성
+logger = logging.getLogger(__name__)  # 로거 생성
 
 sql_llm = ChatOpenAI(
-    temperature=0.1,
+    temperature=0,
     openai_api_key=os.getenv("OPENAI_API_KEY"),
     model_name="gpt-4o-mini",
     streaming=False
@@ -32,6 +36,9 @@ summary_llm = ChatOpenAI(
     callbacks=[StreamingStdOutCallbackHandler()]
 )
 
+# 대화 버퍼 윈도우 메모리 초기화
+memory = ConversationBufferWindowMemory(k=3, return_messages=True)
+
 def extract_sql_from_response(response: str) -> str:
     response = response.replace("```sql", "").replace("```", "")
     return response.strip()
@@ -40,17 +47,11 @@ def question_to_sql(user_question: str) -> str:
     """
     SQL 쿼리를 생성하는 단계에서는 대화 기록을 사용하지 않습니다.
     """
-    sql_messages = [
-        SystemMessage(content="""
-        당신은 데이터베이스 전문가입니다. 사용자의 질문을 MySQL 쿼리로 변환하세요. 
-        반환되는 쿼리는 항상 SELECT 문으로 시작해야 하며, 형식은 다음과 같습니다:
-
-        예제 질문: "펀딩 상태가 'COMPLETED'인 데이터를 보여줘."
-        예제 출력:
-        SELECT *
-        FROM funding_view
-        WHERE funding_status = 'COMPLETED';
-        """),
+    messages = memory.load_memory_variables({})['history']
+    messages = messages + [
+        SystemMessage(content="당신은 데이터베이스 전문가이며 MySQL 쿼리 생성기로 동작합니다. \
+                      아래 데이터베이스 스키마와 데이터를 참고하여 사용자 질문에 적합한 SELECT SQL 쿼리를 반환하세요. \
+                      반환 형식은 반드시 SELECT SQL 쿼리 형식이어야 합니다."),
         HumanMessage(content=f"""
         데이터베이스 스키마:
         - funding_view(
@@ -69,6 +70,10 @@ def question_to_sql(user_question: str) -> str:
             organization_id: BIGINT, -- 기부 단체 ID
             organization_name: VARCHAR, -- 기부 단체 이름
             organization_content: TEXT, -- 기부 단체 설명
+            myFunding_id: BIGINT, -- 사용자 기부 ID (NULL 가능)
+            user_id: BIGINT, -- 사용자 ID (NULL 가능)
+            price: BIGINT, -- 사용자의 기부 금액
+            myFunding_status: ENUM('INPROGRESS', 'COMPLETED', 'DELIVERING', 'DELIVERED', NULL 가능) -- 사용자 기부 상태
         )
 
         사용자 질문: "{user_question}"
@@ -81,60 +86,58 @@ def question_to_sql(user_question: str) -> str:
         LIMIT n;
 
         작업 요구 사항:
-        1. 질문에 맞는 SELECT SQL 쿼리를 생성하세요.
-        2. 질문의 의도를 분석하여 적절한 조건을 작성하세요.
+        1. 대화 기록에서 중요한 컨텍스트를 활용하여 사용자 요청에 맞는 SQL 쿼리를 생성하세요.
+        2. 만약 현재 질문이 이전 질문을 반복하는 경우, 이전 질문에 대한 답변을 다시 제공하세요.
+        3. 질문이 개인화된 경우, 적절한 조건(user_id)을 포함하세요.
+        4. 질문이 개인화되지 않은 경우, user_id 조건을 제외하고 일반적인 조건으로 쿼리를 작성하세요.
         """)
     ]
 
-    response = sql_llm.invoke(sql_messages)
+    response = sql_llm(messages)
     sql_response = extract_sql_from_response(response.content)
-
-    print(f"Generated SQL Query: {sql_response}")
 
     if not sql_response.lower().startswith("select"):
         raise ValueError("유효한 SELECT SQL 쿼리가 반환되지 않았습니다.")
 
+    # 메모리에 새로운 사용자 질문과 답변 저장
+    memory.save_context({"input": user_question}, {"output": sql_response})
+
     return sql_response
 
-async def query_funding_view(user_question: str): 
+async def query_funding_view(user_question: str):
     try:
-        # SQL 생성
         query_sql = question_to_sql(user_question)
-        
-        # DB에서 쿼리 실행
+        logger.debug(f"Generated SQL: {query_sql}")
+
         with engine.connect() as connection:
             result = connection.execute(text(query_sql))
             rows = result.fetchall()
             columns = result.keys()
     except Exception as e:
-        # logger.error(f"Database query error: {e}", exc_info=True)
+        logger.error(f"Database query error: {e}", exc_info=True)
         raise
 
-    # DB 결과를 dictionary로 변환
     data = [dict(zip(columns, row)) for row in rows]
 
-    # 데이터 요약 처리
-    summary_prompt  = (
-        f"사용자 질문: '{user_question}'\n"
-        f"다음 데이터에서 핵심 정보를 요약하여 간결하게 답변을 작성하세요:\n{data}\n"
-        f"응답:"
-    )
-    
+    # 응답 요약 처리
+    prompt = f"사용자 질문: '{user_question}'\n데이터: {data}\n응답:"
+
     try:
-        # logger.debug("Sent <SOS> token")
+        logger.debug("Sent <SOS> token")
         yield "<SOS>"
 
-        summary_messages = [
-            HumanMessage(content=summary_prompt)
-        ]
+        # 대화 메모리를 반영한 스트리밍
+        messages = memory.load_memory_variables({})['history']
+        messages.append(HumanMessage(content=prompt))
 
-        async for chunk in summary_llm.astream(input=summary_messages):
+        async for chunk in summary_llm.astream(input=messages):
             chunk_content = chunk.content if hasattr(chunk, 'content') else str(chunk)
+            logger.debug(f"Streaming chunk: {chunk_content}")
             yield chunk_content
-        
-        # logger.debug("Sent <EOS> token")
+
+        logger.debug("Sent <EOS> token")
         yield "<EOS>"
 
     except Exception as e:
-        # logger.error(f"Error during OpenAI streaming: {e}", exc_info=True)
+        logger.error(f"Error during OpenAI streaming: {e}", exc_info=True)
         raise
