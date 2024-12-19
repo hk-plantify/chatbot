@@ -88,7 +88,6 @@ def question_to_sql(user_question: str) -> str:
         작업 요구 사항:
         1. 대화 기록에서 중요한 컨텍스트를 활용하여 사용자 요청에 맞는 SQL 쿼리를 생성하세요.
         2. 만약 현재 질문이 이전 질문을 반복하는 경우, 이전 질문에 대한 답변을 다시 제공하세요.
-        3. SELECT SQL 쿼리로 View를 조회해서 답변을 얻을 수 없는 경우는 빈 결과를 반환
         """)
     ]
 
@@ -127,7 +126,7 @@ def question_to_sql(user_question: str) -> str:
     response = sql_llm(messages)
     logger.debug(f"Response from LLM: {response}")
     if "function_call" in response:
-        sql_query = response["function_call"]["arguments"].get("sql_query", "")
+        sql_query = response["function_call"]["arguments"].get("sql_query")
     else:
         sql_query = ""
 
