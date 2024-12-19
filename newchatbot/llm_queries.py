@@ -38,7 +38,6 @@ summary_llm = ChatOpenAI(
 
 # 대화 버퍼 윈도우 메모리 초기화
 memory = ConversationBufferWindowMemory(k=3, return_messages=True)
-memory.clear()
 
 def extract_sql_from_response(response: str) -> str:
     response = response.replace("```sql", "").replace("```", "")
