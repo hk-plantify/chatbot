@@ -42,9 +42,8 @@ def question_to_sql(user_question: str) -> str:
     SQL 쿼리를 생성하는 단계에서는 대화 기록을 사용하지 않습니다.
     """
     sql_messages = [
-        SystemMessage(content="당신은 데이터베이스 전문가이며 MySQL 쿼리 생성기로 동작합니다. \
-                      아래 데이터베이스 스키마와 데이터를 참고하여 사용자 질문에 적합한 SELECT SQL 쿼리를 반환하세요. \
-                      반환 형식은 반드시 SELECT SQL 쿼리 형식이어야 합니다."),
+        SystemMessage(content="당신은 데이터베이스 전문가입니다. 사용자가 묻는 질문을 바탕으로 MySQL 쿼리를 생성하세요. \
+                      쿼리는 사용자의 의도를 정확히 반영해야 하며, 조건과 정렬 기준은 질문에 따라 변경됩니다."),
         HumanMessage(content=f"""
         데이터베이스 스키마:
         - funding_view(
@@ -82,7 +81,8 @@ def question_to_sql(user_question: str) -> str:
         WHERE funding_status = 'COMPLETED';
 
         작업 요구 사항:
-        1. 질문에 맞는 SQL 쿼리를 생성하세요.
+        1. 질문에 맞는 SELECT SQL 쿼리를 생성하세요.
+        2. 질문의 의도를 분석하여 적절한 조건을 작성하세요.
         """)
     ]
 
