@@ -15,7 +15,6 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(filename)s: %(lineno)d - %(message)s",
     handlers=[
         logging.StreamHandler(),  # 콘솔에 로그 출력
-        logging.FileHandler("app_debug.log")  # 파일에 로그 저장
     ]
 )
 
@@ -43,18 +42,16 @@ def extract_sql_from_response(response: str) -> str:
     response = response.replace("```sql", "").replace("```", "")
     return response.strip()
 
-from langchain.schema import FunctionMessage
-
 def question_to_sql(user_question: str) -> str:
     """
     SQL 쿼리를 생성하는 단계에서는 대화 기록을 사용하지 않습니다.
     """
     messages = memory.load_memory_variables({})['history']
     messages = messages + [
-        SystemMessage(content="당신은 데이터베이스 전문가이며 MySQL 쿼리 생성기로 동작합니다. \n"
-                      "아래 데이터베이스 스키마와 데이터를 참고하여 사용자 질문에 적합한 SELECT SQL 쿼리를 반환하세요. \n"
-                      "반환 형식은 반드시 SELECT SQL 쿼리 형식이어야 합니다. \n"
-                      "View를 조회해서 답변을 얻을 수 없는 경우는 빈 결과를 반환"),
+        SystemMessage(content="당신은 데이터베이스 전문가이며 MySQL 쿼리 생성기로 동작합니다. "
+                              "아래 데이터베이스 스키마와 데이터를 참고하여 사용자 질문에 적합한 SELECT SQL 쿼리를 반환하세요. "
+                              "반환 형식은 반드시 SELECT SQL 쿼리 형식이어야 합니다. "
+                              "View를 조회해서 답변을 얻을 수 없는 경우는 빈 결과를 반환"),
         HumanMessage(content=f"""
         데이터베이스 스키마:
         - funding_view(
@@ -113,7 +110,13 @@ def question_to_sql(user_question: str) -> str:
     }
 
     # 요청 생성
-    messages.append(FunctionMessage(name="generate_sql_query", schema=function_schema))
+    messages.append(
+        FunctionMessage(
+            name="generate_sql_query",
+            content="사용자 질문에 기반하여 SQL 쿼리를 생성해주세요.",
+            function_call={"name": "generate_sql_query", "schema": function_schema}
+        )
+    )
 
     # 응답 처리
     response = sql_llm(messages)
