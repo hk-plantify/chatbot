@@ -99,7 +99,7 @@ async def query_funding_view(user_question: str, user_id: int = None):
     
     try:
         # SQL 생성
-        query_sql = question_to_sql(user_question, user_id)
+        query_sql = question_to_sql(user_question)
         logger.debug(f"Generated SQL Query: {query_sql}")
         
         # DB에서 쿼리 실행
@@ -131,7 +131,6 @@ async def query_funding_view(user_question: str, user_id: int = None):
 
         async for chunk in summary_llm.astream(input=summary_messages):
             chunk_content = chunk.content if hasattr(chunk, 'content') else str(chunk)
-            logger.debug(f"Streaming chunk: {chunk_content}")
             yield chunk_content
         
         logger.debug("Sent <EOS> token")

@@ -48,7 +48,6 @@ class ChatService(chat_pb2_grpc.ChatServiceServicer):
 
             # 사용자 요청에 대한 응답 처리
             async for chunk_content in query_funding_view(request.message):
-                logger.debug(f"Chunk sent: {chunk_content}")
                 yield chat_pb2.ChatResponse(
                     reply=chunk_content,  # chunk 자체가 이미 텍스트 데이터
                     status=msg_pb2.Status(code=200, message="Chunk received")
