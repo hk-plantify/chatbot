@@ -37,7 +37,7 @@ def extract_sql_from_response(response: str) -> str:
     response = response.replace("```sql", "").replace("```", "")
     return response.strip()
 
-def question_to_sql(user_question: str, user_id: int = None) -> str:
+def question_to_sql(user_question: str) -> str:
     """
     SQL 쿼리를 생성하는 단계에서는 대화 기록을 사용하지 않습니다.
     """
@@ -99,9 +99,7 @@ def question_to_sql(user_question: str, user_id: int = None) -> str:
 
     return sql_response
 
-async def query_funding_view(user_question: str, user_id: int = None):
-    logger.info(f"Received user_question: {user_question}, user_id: {user_id}")
-    
+async def query_funding_view(user_question: str): 
     try:
         # SQL 생성
         query_sql = question_to_sql(user_question)
