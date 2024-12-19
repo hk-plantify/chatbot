@@ -4,9 +4,6 @@ from langchain_openai import ChatOpenAI
 from langchain.schema import HumanMessage, SystemMessage
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from sqlalchemy import text
-from langchain.memory import ConversationBufferWindowMemory
-
-
 import logging
 
 # logging 설정
@@ -36,9 +33,6 @@ summary_llm = ChatOpenAI(
     callbacks=[StreamingStdOutCallbackHandler()]
 )
 
-# 대화 버퍼 윈도우 메모리 초기화
-memory = ConversationBufferWindowMemory(k=2, return_messages=True)
-
 def extract_sql_from_response(response: str) -> str:
     response = response.replace("```sql", "").replace("```", "")
     return response.strip()
@@ -47,8 +41,7 @@ def question_to_sql(user_question: str, user_id: int = None) -> str:
     """
     SQL 쿼리를 생성하는 단계에서는 대화 기록을 사용하지 않습니다.
     """
-    # user_id_condition = f"user_id = {user_id}" if user_id else "전체 데이터를 대상으로"
-    sql_messages = memory.load_memory_variables({})['history'] + [
+    sql_messages = [
         SystemMessage(content="당신은 데이터베이스 전문가이며 MySQL 쿼리 생성기로 동작합니다. \
                       아래 데이터베이스 스키마와 데이터를 참고하여 사용자 질문에 적합한 SELECT SQL 쿼리를 반환하세요. \
                       반환 형식은 반드시 SELECT SQL 쿼리 형식이어야 합니다."),
@@ -85,10 +78,9 @@ def question_to_sql(user_question: str, user_id: int = None) -> str:
         LIMIT n;
 
         작업 요구 사항:
-        1. 대화 기록에서 중요한 컨텍스트를 활용하여 사용자 요청에 맞는 SQL 쿼리를 생성하세요.
-        2. 만약 현재 질문이 이전 질문을 반복하는 경우, 이전 질문에 대한 답변을 다시 제공하세요.
-        3. 질문이 개인화된 경우, 적절한 조건(`user_id = {user_id}`)을 포함하세요.
-        4. 질문이 개인화되지 않은 경우, user_id 조건을 제외하고 일반적인 조건으로 쿼리를 작성하세요.
+        1. 질문에 맞는 SQL 쿼리를 생성하세요.
+        2. 질문이 개인화된 경우, 적절한 조건(`user_id = {user_id}`)을 포함하세요.
+        3. 질문이 개인화되지 않은 경우, user_id 조건을 제외하고 일반적인 조건으로 쿼리를 작성하세요.
         """)
     ]
 
@@ -133,9 +125,9 @@ async def query_funding_view(user_question: str, user_id: int = None):
         logger.debug("Sent <SOS> token")
         yield "<SOS>"
 
-        # 요약 처리용 대화 메모리 추가
-        summary_messages  = memory.load_memory_variables({})['history']
-        summary_messages.append(HumanMessage(content=summary_prompt))
+        summary_messages = [
+            HumanMessage(content=summary_prompt)
+        ]
 
         async for chunk in summary_llm.astream(input=summary_messages):
             chunk_content = chunk.content if hasattr(chunk, 'content') else str(chunk)
@@ -144,9 +136,6 @@ async def query_funding_view(user_question: str, user_id: int = None):
         
         logger.debug("Sent <EOS> token")
         yield "<EOS>"
-
-        # 질문과 요약 응답만 대화 메모리에 저장
-        memory.save_context({"input": user_question}, {"output": "응답 요약이 완료되었습니다."})
 
     except Exception as e:
         logger.error(f"Error during OpenAI streaming: {e}", exc_info=True)
