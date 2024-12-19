@@ -37,7 +37,7 @@ summary_llm = ChatOpenAI(
 )
 
 # 대화 버퍼 윈도우 메모리 초기화
-memory = ConversationBufferWindowMemory(k=3, return_messages=True)
+memory = ConversationBufferWindowMemory(k=2, return_messages=True)
 
 def extract_sql_from_response(response: str) -> str:
     response = response.replace("```sql", "").replace("```", "")
@@ -48,8 +48,7 @@ def question_to_sql(user_question: str, user_id: int = None) -> str:
     SQL 쿼리를 생성하는 단계에서는 대화 기록을 사용하지 않습니다.
     """
     # user_id_condition = f"user_id = {user_id}" if user_id else "전체 데이터를 대상으로"
-    messages = memory.load_memory_variables({})['history']
-    messages = messages + [
+    sql_messages = memory.load_memory_variables({})['history'] + [
         SystemMessage(content="당신은 데이터베이스 전문가이며 MySQL 쿼리 생성기로 동작합니다. \
                       아래 데이터베이스 스키마와 데이터를 참고하여 사용자 질문에 적합한 SELECT SQL 쿼리를 반환하세요. \
                       반환 형식은 반드시 SELECT SQL 쿼리 형식이어야 합니다."),
@@ -74,7 +73,6 @@ def question_to_sql(user_question: str, user_id: int = None) -> str:
             myFunding_id: BIGINT, -- 사용자 기부 ID (NULL 가능)
             user_id: BIGINT, -- 사용자 ID (NULL 가능)
             price: BIGINT, -- 사용자의 기부 금액
-            myFunding_status: ENUM('INPROGRESS', 'COMPLETED', 'DELIVERING', 'DELIVERED', NULL 가능) -- 사용자 기부 상태
         )
 
         사용자 질문: "{user_question}"
@@ -94,7 +92,7 @@ def question_to_sql(user_question: str, user_id: int = None) -> str:
         """)
     ]
 
-    response = sql_llm.invoke(messages)
+    response = sql_llm.invoke(sql_messages)
     sql_response = extract_sql_from_response(response.content)
 
     print(f"Generated SQL Query: {sql_response}")
@@ -125,7 +123,7 @@ async def query_funding_view(user_question: str, user_id: int = None):
     data = [dict(zip(columns, row)) for row in rows]
 
     # 데이터 요약 처리
-    prompt = (
+    summary_prompt  = (
         f"사용자 질문: '{user_question}'\n"
         f"다음 데이터에서 핵심 정보를 요약하여 간결하게 답변을 작성하세요:\n{data}\n"
         f"응답:"
@@ -136,10 +134,10 @@ async def query_funding_view(user_question: str, user_id: int = None):
         yield "<SOS>"
 
         # 요약 처리용 대화 메모리 추가
-        messages = memory.load_memory_variables({})['history']
-        messages.append(HumanMessage(content=prompt))
+        summary_messages  = memory.load_memory_variables({})['history']
+        summary_messages.append(HumanMessage(content=summary_prompt))
 
-        async for chunk in summary_llm.astream(input=messages):
+        async for chunk in summary_llm.astream(input=summary_messages):
             chunk_content = chunk.content if hasattr(chunk, 'content') else str(chunk)
             logger.debug(f"Streaming chunk: {chunk_content}")
             yield chunk_content
