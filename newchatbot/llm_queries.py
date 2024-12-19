@@ -63,9 +63,6 @@ def question_to_sql(user_question: str) -> str:
             organization_id: BIGINT, -- 기부 단체 ID
             organization_name: VARCHAR, -- 기부 단체 이름
             organization_content: TEXT, -- 기부 단체 설명
-            myFunding_id: BIGINT, -- 사용자 기부 ID (NULL 가능)
-            user_id: BIGINT, -- 사용자 ID (NULL 가능)
-            price: BIGINT, -- 사용자의 기부 금액
         )
 
         사용자 질문: "{user_question}"
@@ -89,7 +86,7 @@ def question_to_sql(user_question: str) -> str:
         """)
     ]
 
-    response = sql_llm.invoke(sql_messages)
+    response = sql_llm(sql_messages)
     sql_response = extract_sql_from_response(response.content)
 
     print(f"Generated SQL Query: {sql_response}")
