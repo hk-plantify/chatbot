@@ -12,14 +12,13 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(filename)s: %(lineno)d - %(message)s",
     handlers=[
         logging.StreamHandler(),  # 콘솔에 로그 출력
-        logging.FileHandler("app_debug.log")  # 파일에 로그 저장
     ]
 )
 
 logger = logging.getLogger(__name__)  # 로거 생성
 
 sql_llm = ChatOpenAI(
-    temperature=0,
+    temperature=0.1,
     openai_api_key=os.getenv("OPENAI_API_KEY"),
     model_name="gpt-4o-mini",
     streaming=False
@@ -42,8 +41,16 @@ def question_to_sql(user_question: str) -> str:
     SQL 쿼리를 생성하는 단계에서는 대화 기록을 사용하지 않습니다.
     """
     sql_messages = [
-        SystemMessage(content="당신은 데이터베이스 전문가입니다. 사용자가 묻는 질문을 바탕으로 MySQL 쿼리를 생성하세요. \
-                      쿼리는 사용자의 의도를 정확히 반영해야 하며, 조건과 정렬 기준은 질문에 따라 변경됩니다."),
+        SystemMessage(content="""
+        당신은 데이터베이스 전문가입니다. 사용자의 질문을 MySQL 쿼리로 변환하세요. 
+        반환되는 쿼리는 항상 SELECT 문으로 시작해야 하며, 형식은 다음과 같습니다:
+
+        예제 질문: "펀딩 상태가 'COMPLETED'인 데이터를 보여줘."
+        예제 출력:
+        SELECT *
+        FROM funding_view
+        WHERE funding_status = 'COMPLETED';
+        """),
         HumanMessage(content=f"""
         데이터베이스 스키마:
         - funding_view(
@@ -73,20 +80,13 @@ def question_to_sql(user_question: str) -> str:
         ORDER BY column ASC/DESC
         LIMIT n;
 
-        예제:
-        질문: "펀딩 상태가 'COMPLETED'인 데이터를 보여줘."
-        결과: 
-        SELECT * 
-        FROM funding_view 
-        WHERE funding_status = 'COMPLETED';
-
         작업 요구 사항:
         1. 질문에 맞는 SELECT SQL 쿼리를 생성하세요.
         2. 질문의 의도를 분석하여 적절한 조건을 작성하세요.
         """)
     ]
 
-    response = sql_llm(sql_messages)
+    response = sql_llm.invoke(sql_messages)
     sql_response = extract_sql_from_response(response.content)
 
     print(f"Generated SQL Query: {sql_response}")
@@ -100,7 +100,6 @@ async def query_funding_view(user_question: str):
     try:
         # SQL 생성
         query_sql = question_to_sql(user_question)
-        logger.debug(f"Generated SQL Query: {query_sql}")
         
         # DB에서 쿼리 실행
         with engine.connect() as connection:

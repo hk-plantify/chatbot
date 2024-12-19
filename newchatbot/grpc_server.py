@@ -19,7 +19,6 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(filename)s: %(lineno)d - %(message)s",
     handlers=[
         logging.StreamHandler(),  # 콘솔에 로그 출력
-        logging.FileHandler("app_debug.log")  # 파일에 로그 저장
     ]
 )
 
@@ -29,23 +28,6 @@ logger = logging.getLogger(__name__)  # 로거 생성
 class ChatService(chat_pb2_grpc.ChatServiceServicer):
     async def StreamMessage(self, request, context):
         try:
-            logger.info(f"Request received from: {context.peer()}")
-            # # 사용자 요청 처리
-            # while True:
-            #     # 클라이언트 입력을 수신 (비동기 스트리밍)
-            #     request = await context.read()  # 새로운 요청을 읽음
-
-            #     # 스트림 종료 또는 잘못된 request 처리
-            #     if request is None or not hasattr(request, "message"):
-            #         logger.info("Stream closed by client or invalid request received.")
-            #         break  # 스트림 종료
-
-            #     if not request.message.strip():  # 빈 문자열이면 무시
-            #         logger.debug("Received empty message. Ignoring input.")
-            #         continue
-
-            #     logger.info(f"Processing message: {request.message}")
-
             # 사용자 요청에 대한 응답 처리
             async for chunk_content in query_funding_view(request.message):
                 yield chat_pb2.ChatResponse(
