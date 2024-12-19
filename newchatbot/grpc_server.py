@@ -14,15 +14,15 @@ from auth.oauth import validate_token
 import logging
 
 # logging 설정
-logging.basicConfig(
-    level=logging.DEBUG,  # DEBUG 레벨부터 로그 출력
-    format="%(asctime)s [%(levelname)s] %(filename)s: %(lineno)d - %(message)s",
-    handlers=[
-        logging.StreamHandler(),  # 콘솔에 로그 출력
-    ]
-)
+# logging.basicConfig(
+#     level=logging.DEBUG,  # DEBUG 레벨부터 로그 출력
+#     format="%(asctime)s [%(levelname)s] %(filename)s: %(lineno)d - %(message)s",
+#     handlers=[
+#         logging.StreamHandler(),  # 콘솔에 로그 출력
+#     ]
+# )
 
-logger = logging.getLogger(__name__)  # 로거 생성
+# logger = logging.getLogger(__name__)  # 로거 생성
 
 
 class ChatService(chat_pb2_grpc.ChatServiceServicer):
@@ -35,10 +35,10 @@ class ChatService(chat_pb2_grpc.ChatServiceServicer):
                     status=msg_pb2.Status(code=200, message="Chunk received")
                 )
 
-            logger.info("Streaming completed successfully.")
+            # logger.info("Streaming completed successfully.")
 
         except Exception as e:
-            logger.error("Error in StreamMessage", exc_info=True)
+            # logger.error("Error in StreamMessage", exc_info=True)
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details("Internal server error during streaming")
             yield chat_pb2.ChatResponse(

@@ -7,15 +7,15 @@ from sqlalchemy import text
 import logging
 
 # logging 설정
-logging.basicConfig(
-    level=logging.DEBUG,  # DEBUG 레벨부터 로그 출력
-    format="%(asctime)s [%(levelname)s] %(filename)s: %(lineno)d - %(message)s",
-    handlers=[
-        logging.StreamHandler(),  # 콘솔에 로그 출력
-    ]
-)
+# logging.basicConfig(
+#     level=logging.DEBUG,  # DEBUG 레벨부터 로그 출력
+#     format="%(asctime)s [%(levelname)s] %(filename)s: %(lineno)d - %(message)s",
+#     handlers=[
+#         logging.StreamHandler(),  # 콘솔에 로그 출력
+#     ]
+# )
 
-logger = logging.getLogger(__name__)  # 로거 생성
+# logger = logging.getLogger(__name__)  # 로거 생성
 
 sql_llm = ChatOpenAI(
     temperature=0.1,
@@ -107,7 +107,7 @@ async def query_funding_view(user_question: str):
             rows = result.fetchall()
             columns = result.keys()
     except Exception as e:
-        logger.error(f"Database query error: {e}", exc_info=True)
+        # logger.error(f"Database query error: {e}", exc_info=True)
         raise
 
     # DB 결과를 dictionary로 변환
@@ -121,7 +121,7 @@ async def query_funding_view(user_question: str):
     )
     
     try:
-        logger.debug("Sent <SOS> token")
+        # logger.debug("Sent <SOS> token")
         yield "<SOS>"
 
         summary_messages = [
@@ -132,9 +132,9 @@ async def query_funding_view(user_question: str):
             chunk_content = chunk.content if hasattr(chunk, 'content') else str(chunk)
             yield chunk_content
         
-        logger.debug("Sent <EOS> token")
+        # logger.debug("Sent <EOS> token")
         yield "<EOS>"
 
     except Exception as e:
-        logger.error(f"Error during OpenAI streaming: {e}", exc_info=True)
+        # logger.error(f"Error during OpenAI streaming: {e}", exc_info=True)
         raise
