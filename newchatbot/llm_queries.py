@@ -6,6 +6,7 @@ from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from sqlalchemy import text
 from langchain.memory import ConversationBufferWindowMemory
 from langchain.schema import FunctionMessage
+import json
 
 import logging
 
@@ -51,7 +52,7 @@ def question_to_sql(user_question: str) -> str:
         SystemMessage(content="당신은 데이터베이스 전문가이며 MySQL 쿼리 생성기로 동작합니다. "
                               "아래 데이터베이스 스키마와 데이터를 참고하여 사용자 질문에 적합한 SELECT SQL 쿼리를 반환하세요. "
                               "반환 형식은 반드시 SELECT SQL 쿼리 형식이어야 합니다. "
-                              "View를 조회해서 답변을 얻을 수 없는 경우는 빈 결과를 반환"),
+                              "SELECT SQL 쿼리로 View를 조회해서 답변을 얻을 수 없는 경우는 빈 결과를 반환"),
         HumanMessage(content=f"""
         데이터베이스 스키마:
         - funding_view(
@@ -111,15 +112,22 @@ def question_to_sql(user_question: str) -> str:
 
     # 요청 생성
     messages.append(
-        FunctionMessage(
-            name="generate_sql_query",
-            content="사용자 질문에 기반하여 SQL 쿼리를 생성해주세요.",
-            function_call={"name": "generate_sql_query", "schema": function_schema}
-        )
+    FunctionMessage(
+        name="generate_sql_query",
+        content=json.dumps({
+            "name": "generate_sql_query",
+            "description": "사용자 질문에 기반하여 SQL 쿼리를 생성합니다.",
+            "parameters": {
+                "sql_query": "사용자 질문에 기반하여 생성된 SQL 쿼리"
+            }
+        }),
+        function_call={"name": "generate_sql_query", "schema": function_schema}
     )
+)
 
     # 응답 처리
     response = sql_llm(messages)
+    logger.debug(f"Response from LLM: {response}")
     if "function_call" in response:
         sql_query = response["function_call"]["arguments"].get("sql_query", "")
     else:
