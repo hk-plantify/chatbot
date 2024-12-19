@@ -38,6 +38,7 @@ summary_llm = ChatOpenAI(
 
 # 대화 버퍼 윈도우 메모리 초기화
 memory = ConversationBufferWindowMemory(k=3, return_messages=True)
+memory.clear()
 
 def extract_sql_from_response(response: str) -> str:
     response = response.replace("```sql", "").replace("```", "")
@@ -50,9 +51,7 @@ def question_to_sql(user_question: str, user_id: int = None) -> str:
     # user_id_condition = f"user_id = {user_id}" if user_id else "전체 데이터를 대상으로"
     messages = memory.load_memory_variables({})['history']
     messages = messages + [
-        SystemMessage(content="당신은 데이터베이스 전문가이며 MySQL 쿼리 생성기로 동작합니다. \
-                      아래 데이터베이스 스키마와 데이터를 참고하여 사용자 질문에 적합한 SELECT SQL 쿼리를 반환하세요. \
-                      반환 형식은 반드시 SELECT SQL 쿼리 형식이어야 합니다."),
+        SystemMessage(content="당신은 MySQL 쿼리 생성기로 동작합니다. 데이터베이스 스키마와 사용자 질문을 기반으로 적절한 SELECT 쿼리를 반환하세요."),
         HumanMessage(content=f"""
         데이터베이스 스키마:
         - funding_view(
