@@ -77,6 +77,13 @@ def question_to_sql(user_question: str, user_id: int = None) -> str:
         ORDER BY column ASC/DESC
         LIMIT n;
 
+        예제:
+        질문: "펀딩 상태가 'COMPLETED'인 데이터를 보여줘."
+        결과: 
+        SELECT * 
+        FROM funding_view 
+        WHERE funding_status = 'COMPLETED';
+
         작업 요구 사항:
         1. 질문에 맞는 SQL 쿼리를 생성하세요.
         2. 질문이 개인화된 경우, 적절한 조건(`user_id = {user_id}`)을 포함하세요.
