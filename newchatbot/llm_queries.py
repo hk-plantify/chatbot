@@ -86,8 +86,6 @@ def question_to_sql(user_question: str, user_id: int = None) -> str:
 
         작업 요구 사항:
         1. 질문에 맞는 SQL 쿼리를 생성하세요.
-        2. 질문이 개인화된 경우, 적절한 조건(`user_id = {user_id}`)을 포함하세요.
-        3. 질문이 개인화되지 않은 경우, user_id 조건을 제외하고 일반적인 조건으로 쿼리를 작성하세요.
         """)
     ]
 
