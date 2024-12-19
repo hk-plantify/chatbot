@@ -121,7 +121,11 @@ async def query_funding_view(user_question: str, user_id: int = None):
     data = [dict(zip(columns, row)) for row in rows]
 
     # 응답 요약 처리
-    prompt = f"사용자 질문: '{user_question}'\n데이터: {data}\n응답:"
+    prompt = (
+    f"사용자 질문: '{user_question}'\n"
+    f"다음 데이터에서 핵심 정보를 요약하여 간결하게 답변을 작성하세요:\n{data}\n"
+    f"응답:"
+    )
 
     try:
         logger.debug("Sent <SOS> token")
