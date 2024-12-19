@@ -51,8 +51,7 @@ def question_to_sql(user_question: str) -> str:
     messages = messages + [
         SystemMessage(content="당신은 데이터베이스 전문가이며 MySQL 쿼리 생성기로 동작합니다. "
                               "아래 데이터베이스 스키마와 데이터를 참고하여 사용자 질문에 적합한 SELECT SQL 쿼리를 반환하세요. "
-                              "반환 형식은 반드시 SELECT SQL 쿼리 형식이어야 합니다. "
-                              "SELECT SQL 쿼리로 View를 조회해서 답변을 얻을 수 없는 경우는 빈 결과를 반환"),
+                              "반환 형식은 반드시 SELECT SQL 쿼리 형식이어야 합니다. "),
         HumanMessage(content=f"""
         데이터베이스 스키마:
         - funding_view(
@@ -89,8 +88,7 @@ def question_to_sql(user_question: str) -> str:
         작업 요구 사항:
         1. 대화 기록에서 중요한 컨텍스트를 활용하여 사용자 요청에 맞는 SQL 쿼리를 생성하세요.
         2. 만약 현재 질문이 이전 질문을 반복하는 경우, 이전 질문에 대한 답변을 다시 제공하세요.
-        3. 질문이 개인화된 경우, 적절한 조건(user_id)을 포함하세요.
-        4. 질문이 개인화되지 않은 경우, user_id 조건을 제외하고 일반적인 조건으로 쿼리를 작성하세요.
+        3. SELECT SQL 쿼리로 View를 조회해서 답변을 얻을 수 없는 경우는 빈 결과를 반환
         """)
     ]
 
